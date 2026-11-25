@@ -410,6 +410,22 @@ textarea {
   animation: actionMoveToastRise 250ms ease-out;
 }
 
+/* The onboarding tour's Next button fills up while it is locked; duration is set inline. */
+@keyframes tourNextFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.tour-next-fill {
+  animation-name: tourNextFill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tab-pulse,
   .animate-tab-bounce,

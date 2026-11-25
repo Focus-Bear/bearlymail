@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { HELP_ARTICLE_IDS, helpArticlePath } from 'constants/helpArticles';
+
 export const ContextImpactInfo: React.FC = () => {
   const { t } = useTranslation();
 
@@ -36,7 +38,7 @@ export const ContextImpactInfo: React.FC = () => {
         {t('settings.contextAboutMe.impactDescription')}
       </div>
       <Link
-        to="/help/context"
+        to={helpArticlePath(HELP_ARTICLE_IDS.CONTEXT)}
         style={{
           color: theme.colors.primary.main,
           fontSize: theme.typography.fontSize.sm,

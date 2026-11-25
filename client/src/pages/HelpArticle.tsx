@@ -1,86 +1,31 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { theme } from 'theme/theme';
+import { readHelpArticle } from 'utils/helpArticleContent';
 
+import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { HelpFeedbackBanner } from 'components/feedback/HelpFeedbackBanner';
 import { Sidebar } from 'components/inbox/Sidebar';
+import { HELP_ARTICLE_REDIRECTS, helpArticlePath } from 'constants/helpArticles';
+import { ROUTE_HELP } from 'constants/strings';
 import { useAuth } from 'contexts/AuthContext';
 import { useSidebarState } from 'hooks/useSidebarState';
-
-/**
- * Article ids come from the URL in kebab-case (e.g. `follow-up`), but the
- * localization keys are camelCase (`help.articles.followUp`). Convert so the
- * detail page reads the same keys the help list uses; without this a multi-word
- * article rendered its raw key instead of the text (issue #258). Single-word
- * ids pass through unchanged.
- */
-export const toArticleKeySegment = (id: string): string =>
-  id.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
 
 const HelpArticle: React.FC = () => {
   const { articleId } = useParams<{ articleId: string }>();
   const { user, logout } = useAuth();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { isCollapsed, canToggleCollapse, isMobileMenuOpen, toggleCollapse, closeMobileMenu } = useSidebarState({
     alwaysToggleable: true,
   });
 
-  const getArticleContent = () => {
-    if (!articleId) {
-      return null;
-    }
+  const redirectTo = articleId ? HELP_ARTICLE_REDIRECTS[articleId] : undefined;
+  if (redirectTo) {
+    return <Navigate to={helpArticlePath(redirectTo)} replace />;
+  }
 
-    const keySegment = toArticleKeySegment(articleId);
-    const contentKey = `help.articles.${keySegment}.content`;
-    const titleKey = `help.articles.${keySegment}.title`;
-    // An id with no article would otherwise render its raw translation key as the title.
-    if (!i18n.exists(titleKey)) {
-      return null;
-    }
-
-    // Get content sections
-    const sections = [];
-    let sectionIndex = 0;
-    while (true) {
-      const sectionKey = `${contentKey}.section${sectionIndex}`;
-      const sectionTitle = t(`${sectionKey}.title`, { defaultValue: '' });
-      if (!sectionTitle && sectionIndex > 0) {
-        break;
-      }
-
-      sections.push({
-        title: sectionTitle || (sectionIndex === 0 ? t(titleKey) : ''),
-        content: t(`${sectionKey}.content`, { defaultValue: '' }),
-        items: [] as string[],
-      });
-
-      // Check for list items
-      let itemIndex = 0;
-      const items: string[] = [];
-      while (true) {
-        const itemKey = `${sectionKey}.item${itemIndex}`;
-        const item = t(itemKey, { defaultValue: '' });
-        if (!item) {
-          break;
-        }
-        items.push(item);
-        itemIndex++;
-      }
-      if (items.length > 0) {
-        sections[sections.length - 1].items = items;
-      }
-
-      sectionIndex++;
-    }
-
-    return {
-      title: t(titleKey),
-      sections,
-    };
-  };
-
-  const article = getArticleContent();
+  const article = articleId ? readHelpArticle(articleId, key => t(key, { defaultValue: '' })) : null;
 
   if (!article || !articleId) {
     return (
@@ -95,6 +40,7 @@ const HelpArticle: React.FC = () => {
           onCloseMobileMenu={closeMobileMenu}
         />
         <div style={{ flex: 1, padding: theme.spacing.xl }}>
+          <BackToInboxLink />
           <p>{t('help.articleNotFound')}</p>
         </div>
       </div>
@@ -115,20 +61,23 @@ const HelpArticle: React.FC = () => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto', padding: theme.spacing.xl }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <div style={{ marginBottom: theme.spacing.lg }}>
+            <nav
+              aria-label={t('help.navigationLabel')}
+              style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}
+            >
+              {/* Inbox first: most people leave an article to get back to their email, not to the help index. */}
+              <BackToInboxLink />
               <Link
-                to="/help"
+                to={ROUTE_HELP}
                 style={{
                   color: theme.colors.primary.main,
                   fontSize: theme.typography.fontSize.base,
                   textDecoration: 'underline',
-                  marginBottom: theme.spacing.sm,
-                  display: 'inline-block',
                 }}
               >
-                ← {t('help.backToHelp')}
+                {t('help.backToHelp')}
               </Link>
-            </div>
+            </nav>
 
             <h1
               style={{

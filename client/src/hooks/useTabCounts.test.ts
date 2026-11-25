@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 
-import { reconcileActiveTabCounts, useTabCounts } from './useTabCounts';
+import { getActiveTabVisibleCount, reconcileActiveTabCounts, useTabCounts } from './useTabCounts';
 
 vi.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -584,5 +584,41 @@ describe('reconcileActiveTabCounts', () => {
       counts, mode: 'triage', summary,
       filters: { accountIds: [], categories: [], minPriority: 30, maxPriority: null, priorityFilterSource: 'guided' },
     })).toEqual(counts);
+  });
+});
+
+describe('getActiveTabVisibleCount', () => {
+  const counts = { triage: 499, action: 5, followUp: 0 };
+  const summary = [{ count: 2 }, { count: 1 }];
+  const guidedHighAndAbove = {
+    accountIds: [], categories: [], minPriority: 70, maxPriority: null, priorityFilterSource: 'guided' as const,
+  };
+
+  it('returns how many emails the list shows when a priority filter hides the rest', () => {
+    expect(getActiveTabVisibleCount({ counts, mode: 'triage', summary, filters: guidedHighAndAbove })).toBe(3);
+  });
+
+  it('returns null without a priority filter, since the badge already matches the list', () => {
+    expect(getActiveTabVisibleCount({
+      counts, mode: 'triage', summary,
+      filters: { ...guidedHighAndAbove, minPriority: null, priorityFilterSource: null },
+    })).toBeNull();
+  });
+
+  it('returns null when the filter hides nothing', () => {
+    expect(getActiveTabVisibleCount({
+      counts: { ...counts, triage: 3 }, mode: 'triage', summary, filters: guidedHighAndAbove,
+    })).toBeNull();
+  });
+
+  it('ignores the guided default outside Triage, where it does not apply', () => {
+    expect(getActiveTabVisibleCount({
+      counts: { ...counts, action: 9 }, mode: 'action', summary, filters: guidedHighAndAbove,
+    })).toBeNull();
+  });
+
+  it('returns null while the summary or counts are still loading', () => {
+    expect(getActiveTabVisibleCount({ counts, mode: 'triage', summary: null, filters: guidedHighAndAbove })).toBeNull();
+    expect(getActiveTabVisibleCount({ counts: null, mode: 'triage', summary, filters: guidedHighAndAbove })).toBeNull();
   });
 });

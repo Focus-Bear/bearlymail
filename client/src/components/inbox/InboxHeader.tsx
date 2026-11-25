@@ -119,6 +119,8 @@ interface InboxHeaderProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
+  /** Threads the active tab's list shows while a priority filter hides some ("3 of 499"). */
+  activeTabVisibleCount?: number | null;
   onToggleMobileMenu?: () => void;
   // Filter props
   isFilterBarVisible: boolean;
@@ -144,6 +146,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
+  activeTabVisibleCount,
   onToggleMobileMenu,
   isFilterBarVisible,
   hasActiveFilters,
@@ -171,6 +174,7 @@ export const InboxHeader: React.FC<InboxHeaderProps> = ({
       actionTabRef={actionTabRef}
       followUpTabRef={followUpTabRef}
       tabCounts={tabCounts}
+      activeTabVisibleCount={activeTabVisibleCount}
       actionTabEmphasis={actionMoveFeedback?.tabEmphasis}
       onActionTabEmphasisEnd={actionMoveFeedback?.onTabEmphasisEnd}
       actionMovedCount={actionMoveFeedback?.movedCount}

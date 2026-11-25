@@ -72,4 +72,14 @@ describe('inbox tour — new steps', () => {
     expect(screen.getByRole('alertdialog')).toHaveAccessibleName(TOUR_COPY.snoozeTitle);
     expect(screen.getByTestId('spotlight').querySelectorAll('path')).toHaveLength(2);
   });
+
+  it('teaches tapping the priority badge to see why an email is ranked where it is', async () => {
+    mountTarget(TOUR_TARGETS.EMAIL_PRIORITY_BADGE);
+    renderStep('onboarding.tour.priorityBadgeTitle');
+
+    expect(await screen.findByText(TOUR_COPY.priorityBadgeContent)).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(TOUR_COPY.priorityBadgeTitle);
+    expect(TOUR_COPY.priorityBadgeContent).toMatch(/priority badge/);
+    expect(screen.getByTestId('spotlight').querySelectorAll('path')).toHaveLength(2);
+  });
 });

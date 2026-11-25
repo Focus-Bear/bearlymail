@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
+import { HELP_ARTICLE_IDS, helpArticlePath } from 'constants/helpArticles';
+
 export const SettingsHeader: React.FC = () => {
   const { t } = useTranslation();
 
@@ -20,7 +22,7 @@ export const SettingsHeader: React.FC = () => {
         {t('settings.title')}
       </h1>
       <Link
-        to="/help/settings"
+        to={helpArticlePath(HELP_ARTICLE_IDS.SETTINGS)}
         style={{
           display: 'flex',
           alignItems: 'center',

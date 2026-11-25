@@ -6,6 +6,7 @@ import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
 import { CATEGORY_OTHER } from 'constants/strings';
+import { TOUR_TARGETS } from 'constants/tour';
 import { usePriorityCalculatedFlash } from 'hooks/usePriorityCalculatedFlash';
 
 interface PriorityBadgeProps {
@@ -46,6 +47,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   return (
     <span
       data-priority-badge={email.id}
+      data-tour={TOUR_TARGETS.EMAIL_PRIORITY_BADGE}
       style={{
         fontSize: theme.typography.fontSize.xs,
         padding: `${theme.spacing.xs} ${theme.spacing.sm}`,

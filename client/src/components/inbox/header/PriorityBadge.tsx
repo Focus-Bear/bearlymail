@@ -5,9 +5,11 @@ import { Email, getEmailPriorityScore, isEmailPriorityCalculating, isEmailPriori
 import { getPriorityBadge } from 'utils/priorityUtils';
 
 import { PriorityTooltip } from 'components/priority/PriorityTooltip';
-import { CATEGORY_OTHER } from 'constants/strings';
+import { CATEGORY_OTHER, KEY_ENTER, KEY_SPACE } from 'constants/strings';
 import { TOUR_TARGETS } from 'constants/tour';
 import { usePriorityCalculatedFlash } from 'hooks/usePriorityCalculatedFlash';
+
+const BADGE_ACTIVATION_KEYS: ReadonlySet<string> = new Set([KEY_ENTER, KEY_SPACE]);
 
 interface PriorityBadgeProps {
   email: Email;
@@ -43,9 +45,22 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
   // Briefly show a ✅ confirmation when the spinner resolves while the badge is mounted,
   // instead of jumping straight from "Calculating..." to the label.
   const showCalculated = usePriorityCalculatedFlash(isCalculating);
+  const isOpen = priorityTooltip.hoveredPriorityEmailId === email.id;
+
+  const togglePopover = () => {
+    if (isCalculating) {
+      return;
+    }
+    priorityTooltip.togglePriorityTooltip(email.id);
+  };
 
   return (
     <span
+      role="button"
+      tabIndex={isCalculating ? -1 : 0}
+      aria-haspopup="dialog"
+      aria-expanded={isOpen}
+      aria-disabled={isCalculating}
       data-priority-badge={email.id}
       data-tour={TOUR_TARGETS.EMAIL_PRIORITY_BADGE}
       style={{
@@ -68,10 +83,16 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
       onClick={event => {
         event.stopPropagation();
         event.preventDefault();
-        if (isCalculating) {
+        togglePopover();
+      }}
+      onKeyDown={event => {
+        // Keys pressed inside the portalled popover bubble here through React.
+        if (event.target !== event.currentTarget || !BADGE_ACTIVATION_KEYS.has(event.key)) {
           return;
         }
-        priorityTooltip.togglePriorityTooltip(email.id);
+        event.stopPropagation();
+        event.preventDefault();
+        togglePopover();
       }}
     >
       {isCalculating ? (
@@ -102,7 +123,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
         </>
       )}
 
-      {priorityTooltip.hoveredPriorityEmailId === email.id && (
+      {isOpen && (
         <PriorityTooltip
           emailId={email.id}
           emailThreadId={email.emailThreadId}
@@ -120,6 +141,7 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({
           protoCategoryName={email.protoCategoryName}
           protoCategoryDescription={email.protoCategoryDescription}
           currentCategoryId={email.category_id ?? null}
+          phishing={email}
           onClose={priorityTooltip.hidePriorityTooltip}
           onOverrideUrgency={onOverrideUrgency}
           onProvideFeedback={onProvideFeedback}

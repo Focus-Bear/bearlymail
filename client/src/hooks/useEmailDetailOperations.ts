@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Email, GitHubLink, PriorityExplanation } from 'types/email';
+import { Email, GitHubLink, PriorityExplanation, SummaryDebugInfo } from 'types/email';
 import { ReplySendOptions } from 'types/replySend';
 import {
   extractCleanBody,
@@ -23,6 +23,7 @@ import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
+import { applySummaryPhishingSignal, SummaryPhishingSignal } from 'components/priority/tooltip/phishingVerdict.helpers';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -52,6 +53,13 @@ import { EmailDetailOperationsOptions, EmailDetailState } from './useEmailDetail
 import { routeAfterSend, SendReplyPayload, sendReplyRequest } from './useEmailDetailSendHelpers';
 
 export type { EmailDetailOperationsOptions, EmailDetailState };
+
+/** What POST /summarize/:id returns. */
+interface SummaryResponse {
+  summary: string;
+  summaryDebug?: SummaryDebugInfo | null;
+  phishingSignal?: SummaryPhishingSignal | null;
+}
 
 export function useEmailDetailOperations(
   id: string | undefined,
@@ -216,6 +224,15 @@ export function useEmailDetailOperations(
     }
   }, [setCustomRules]);
 
+  const applySummaryResponse = useCallback(
+    (data: SummaryResponse) => {
+      setSummary(data.summary);
+      setSummaryDebug(data.summaryDebug ?? null);
+      setEmail(previous => applySummaryPhishingSignal(previous, data.phishingSignal));
+    },
+    [setSummary, setSummaryDebug, setEmail]
+  );
+
   const handleUseCustomRule = useCallback(
     async (rule: { whenToUse: string; howToSummarize: string; ruleId?: string }) => {
       if (!id) {
@@ -255,8 +272,7 @@ export function useEmailDetailOperations(
         }
 
         if (response.data && response.data.summary) {
-          setSummary(response.data.summary);
-          setSummaryDebug(response.data.summaryDebug ?? null);
+          applySummaryResponse(response.data);
         } else {
           console.error('Invalid response from summarization API:', response.data);
           setSummary(null);
@@ -276,7 +292,7 @@ export function useEmailDetailOperations(
         }
       }
     },
-    [id, setIsGeneratingSummary, setSummaryType, setSummary, setSummaryDebug]
+    [id, setIsGeneratingSummary, setSummaryType, applySummaryResponse]
   );
 
   const handleSummarize = useCallback(
@@ -299,8 +315,7 @@ export function useEmailDetailOperations(
         if (controller.signal.aborted) {
           return;
         }
-        setSummary(response.data.summary);
-        setSummaryDebug(response.data.summaryDebug ?? null);
+        applySummaryResponse(response.data);
       } catch (error) {
         if (axios.isCancel(error)) {
           return;
@@ -314,7 +329,7 @@ export function useEmailDetailOperations(
         }
       }
     },
-    [id, setIsGeneratingSummary, setSummaryType, setSummary, setSummaryDebug]
+    [id, setIsGeneratingSummary, setSummaryType, applySummaryResponse]
   );
 
   const fetchEmail = useCallback(async () => {

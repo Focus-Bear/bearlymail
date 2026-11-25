@@ -5359,7 +5359,25 @@
       "loading": "Loading priority explanation...",
       "loadError": "Failed to load priority explanation.",
       "noData": "No priority breakdown is available yet.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "dialogLabel": "Priority and phishing details",
+      "phishing": {
+        "heading": "Phishing check",
+        "why": "Why:",
+        "senderChecks": "Sender checks (for the sending domain only)",
+        "verdict": {
+          "phishing": "Phishing",
+          "suspicious": "Suspicious",
+          "safe": "No signs of phishing",
+          "notChecked": "Not checked yet"
+        },
+        "explanation": {
+          "phishing": "BearlyMail flagged this email as phishing.",
+          "suspicious": "BearlyMail noticed something unusual, but not enough to warn you.",
+          "safe": "BearlyMail checked this email and found no signs of phishing.",
+          "notChecked": "The phishing check runs with the AI summary. Open the email and regenerate its summary to check it now."
+        }
+      }
     },
     "override": {
       "title": "Override Priority Score",

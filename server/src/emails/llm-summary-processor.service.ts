@@ -18,6 +18,7 @@ import { extractPlainSummary } from "../llm/llm-summary-utils";
 import { PriorityCacheService } from "../priority/priority-cache.service";
 import { ProtoCategoriesService } from "../proto-categories/proto-categories.service";
 import { JobPerformanceTracker } from "../queue/job-performance-tracker";
+import { toStoredPhishingVerdict } from "../summarization/phishing-detection.service";
 import { SummarizationService } from "../summarization/summarization.service";
 import { parseCategoryName } from "../utils/category-name.util";
 import { extractEmailAddress } from "../utils/email-address.utils";
@@ -401,8 +402,7 @@ export class LLMSummaryProcessorService {
             emailId,
             email,
             summary: result.summary,
-            phishingConfidence: result.phishingSignal?.confidence ?? null,
-            phishingReason: result.phishingSignal?.reason ?? null,
+            ...toStoredPhishingVerdict(result.phishingSignal),
             sentimentScore: result.sentimentScore,
             sentimentExplanation: result.sentimentExplanation,
             actionItems: result.actionItems ?? null,
@@ -809,12 +809,18 @@ export class LLMSummaryProcessorService {
         email.threadId,
       );
       const threadEmailIds = threadEmails.map((entry) => entry.id);
+      // This full re-summarisation also ran the phishing check, and it marks the
+      // thread summarised, so the background summary job (the other place a
+      // verdict is stored) skips it. Dropping the verdict here left phishing
+      // that reached the priority pipeline first with no warning (#1090).
+      const phishingColumns = toStoredPhishingVerdict(result.phishingSignal);
       await this.emailRepository.update(
         { id: In(threadEmailIds) },
         {
           summary: freshSummary,
           summarySource: "llm" as const,
           isProcessingSummary: false,
+          ...phishingColumns,
           ...(result.sentimentScore !== null &&
           result.sentimentScore !== undefined
             ? { sentimentScore: result.sentimentScore }
@@ -831,6 +837,7 @@ export class LLMSummaryProcessorService {
       );
       // Reflect in memory so the immediate caller (priority/category) reads it.
       email.summary = freshSummary;
+      Object.assign(email, phishingColumns);
       this.logger.log(
         `[Worker ${workerId}] Refreshed full thread summary before priority/category for thread ${email.emailThreadId}`,
       );

@@ -20,7 +20,11 @@ import { SchedulingPreferencesService } from "../scheduling-preferences/scheduli
 import { UsersService } from "../users/users.service";
 import { logError } from "../utils/logger";
 import { matchAny } from "./pattern-matcher";
-import { PhishingSignal, PhishingSignals } from "./phishing-detection.service";
+import {
+  PhishingSignal,
+  PhishingSignals,
+  toStoredPhishingVerdict,
+} from "./phishing-detection.service";
 import {
   buildPhishingCacheKey,
   buildPhishingContext,
@@ -705,13 +709,23 @@ export class SummarizationService {
    * `emailThreadId` is the DB UUID of the EmailThread row.
    * Using the latest email's `receivedAt` (rather than `new Date()`) ensures
    * that any email arriving after that timestamp is still detected as stale.
+   *
+   * `phishingSignal` is the verdict the same analysis produced; it replaces
+   * the stored one, so re-running the summary is how an email processed by
+   * older detection rules gets re-checked. Omit it to leave the stored verdict.
    */
   async persistSummaryForThread(
     userId: string,
     threadId: string,
     emailThreadId: string | null,
     summary: string,
-    summaryType?: string | null,
+    {
+      summaryType,
+      phishingSignal,
+    }: {
+      summaryType?: string | null;
+      phishingSignal?: PhishingSignal | null;
+    } = {},
   ): Promise<void> {
     const threadEmails = await this.emailsService.getThreadEmails(
       userId,
@@ -731,6 +745,9 @@ export class SummarizationService {
         // Persist the selector value so the detail view restores the summary
         // type in sync with the shown summary. NULL = default ('tldr').
         summaryType: summaryType ?? null,
+        ...(phishingSignal !== undefined
+          ? toStoredPhishingVerdict(phishingSignal)
+          : {}),
       },
     );
 

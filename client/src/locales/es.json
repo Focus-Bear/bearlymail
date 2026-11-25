@@ -5435,7 +5435,25 @@
       "loading": "Cargando explicación de prioridad...",
       "loadError": "No se pudo cargar la explicación de prioridad.",
       "noData": "Aún no hay un desglose de prioridad disponible.",
-      "retry": "Reintentar"
+      "retry": "Reintentar",
+      "dialogLabel": "Detalles de prioridad y phishing",
+      "phishing": {
+        "heading": "Comprobación de phishing",
+        "why": "Por qué:",
+        "senderChecks": "Comprobaciones del remitente (solo del dominio de envío)",
+        "verdict": {
+          "phishing": "Phishing",
+          "suspicious": "Sospechoso",
+          "safe": "Sin señales de phishing",
+          "notChecked": "Aún no comprobado"
+        },
+        "explanation": {
+          "phishing": "BearlyMail marcó este correo como phishing.",
+          "suspicious": "BearlyMail notó algo inusual, pero no lo suficiente para avisarte.",
+          "safe": "BearlyMail revisó este correo y no encontró señales de phishing.",
+          "notChecked": "La comprobación de phishing se hace con el resumen de IA. Abre el correo y vuelve a generar su resumen para comprobarlo ahora."
+        }
+      }
     },
     "veryLow": "Muy bajo"
   },

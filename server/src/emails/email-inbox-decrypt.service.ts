@@ -31,6 +31,20 @@ const OTHER_CATEGORY_NAME = "Other";
  *
  * Extracted to keep EmailInboxService under the 800-line limit.
  */
+/** The phishing verdict and the sender checks shown beside it. */
+function phishingFieldsOf(
+  row: RawEmailRow,
+): Pick<
+  RawEmailRow,
+  "phishingConfidence" | "phishingReason" | "senderAuthResults"
+> {
+  return {
+    phishingConfidence: row.phishingConfidence,
+    phishingReason: row.phishingReason,
+    senderAuthResults: row.senderAuthResults,
+  };
+}
+
 @Injectable()
 export class EmailInboxDecryptService {
   private readonly logger = new Logger(EmailInboxDecryptService.name);
@@ -147,8 +161,8 @@ export class EmailInboxDecryptService {
       correspondentName: row.correspondentName
         ? EncryptionHelper.tryDecrypt(row.correspondentName)
         : null,
-      phishingConfidence: row.phishingConfidence,
-      phishingReason: row.phishingReason,
+      ...phishingFieldsOf(row),
+      summarySource: row.summarySource,
       unsubscribeMethod: unsubscribeMethodFromStored(
         this.decryptEncryptedJsonField<unknown>(
           row.unsubscribeOptions ?? undefined,

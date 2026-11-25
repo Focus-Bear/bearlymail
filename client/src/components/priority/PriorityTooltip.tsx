@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { AiDecisionProvider, CategorizationSource, PriorityExplanation, PriorityScoreSource } from 'types/email';
 
+import type { PhishingVerdictEmail } from 'components/priority/tooltip/phishingVerdict.helpers';
 import { PriorityTooltipContainer } from 'components/priority/tooltip/PriorityTooltipContainer';
 import { PriorityTooltipContent } from 'components/priority/tooltip/PriorityTooltipContent';
 import { PriorityTooltipLoading } from 'components/priority/tooltip/PriorityTooltipLoading';
+import { PriorityTooltipPhishing } from 'components/priority/tooltip/PriorityTooltipPhishing';
 
 interface PriorityTooltipProps {
   emailId: string;
@@ -28,6 +30,8 @@ interface PriorityTooltipProps {
   protoCategoryDescription?: string | null;
   /** UUID of the email's current category — threaded through to CategoryOverrideModal. */
   currentCategoryId?: string | null;
+  /** The email's stored phishing decision, shown above the priority breakdown. */
+  phishing?: PhishingVerdictEmail;
   onClose: () => void;
   onOverrideUrgency?: () => void;
   onProvideFeedback?: () => void;
@@ -35,6 +39,41 @@ interface PriorityTooltipProps {
   onRetry?: () => void;
   onCategoryOverride?: (newCategory: string) => void;
 }
+
+interface TooltipMessageProps {
+  message: string;
+  onRetry?: () => void;
+}
+
+/** A centred status line for the states without a breakdown, with an optional Retry. */
+const TooltipMessage: React.FC<TooltipMessageProps> = ({ message, onRetry }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
+      <div style={{ color: theme.colors.text.secondary }}>{message}</div>
+      {onRetry && (
+        <button
+          onClick={event => {
+            event.stopPropagation();
+            event.preventDefault();
+            onRetry();
+          }}
+          style={{
+            marginTop: theme.spacing.sm,
+            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+            cursor: 'pointer',
+            borderRadius: theme.borderRadius.sm,
+            border: `1px solid ${theme.colors.border.light}`,
+            background: 'none',
+            fontSize: theme.typography.fontSize.sm,
+          }}
+        >
+          {t('priority.tooltip.retry')}
+        </button>
+      )}
+    </div>
+  );
+};
 
 export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   emailId,
@@ -53,6 +92,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   protoCategoryName,
   protoCategoryDescription,
   currentCategoryId,
+  phishing,
   onClose,
   onOverrideUrgency,
   onProvideFeedback,
@@ -61,74 +101,40 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
   onCategoryOverride,
 }) => {
   const { t } = useTranslation();
+  const phishingSection = phishing ? <PriorityTooltipPhishing email={phishing} /> : null;
 
   if (priorityExplanationError && !loadingPriorityExplanation) {
     return (
-      <PriorityTooltipContainer emailId={emailId}>
-        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
-          <div style={{ marginBottom: theme.spacing.sm, color: theme.colors.text.secondary }}>
-            {t('priority.tooltip.loadError')}
-          </div>
-          {onRetry && (
-            <button
-              onClick={event => {
-                event.stopPropagation();
-                event.preventDefault();
-                onRetry();
-              }}
-              style={{
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                cursor: 'pointer',
-                borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${theme.colors.border.light}`,
-                background: 'none',
-                fontSize: theme.typography.fontSize.sm,
-              }}
-            >
-              {t('priority.tooltip.retry')}
-            </button>
-          )}
-        </div>
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
+        <TooltipMessage message={t('priority.tooltip.loadError')} onRetry={onRetry} />
       </PriorityTooltipContainer>
     );
   }
 
   if (!priorityExplanation && loadingPriorityExplanation) {
-    return <PriorityTooltipLoading emailId={emailId} />;
+    if (!phishingSection) {
+      return <PriorityTooltipLoading emailId={emailId} />;
+    }
+    return (
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
+        <TooltipMessage message={t('priority.tooltip.loading')} />
+      </PriorityTooltipContainer>
+    );
   }
 
   if (!priorityExplanation) {
     return (
-      <PriorityTooltipContainer emailId={emailId}>
-        <div style={{ textAlign: 'center', padding: theme.spacing.md }}>
-          <div style={{ color: theme.colors.text.secondary }}>{t('priority.tooltip.noData')}</div>
-          {onRetry && (
-            <button
-              onClick={event => {
-                event.stopPropagation();
-                event.preventDefault();
-                onRetry();
-              }}
-              style={{
-                marginTop: theme.spacing.sm,
-                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                cursor: 'pointer',
-                borderRadius: theme.borderRadius.sm,
-                border: `1px solid ${theme.colors.border.light}`,
-                background: 'none',
-                fontSize: theme.typography.fontSize.sm,
-              }}
-            >
-              {t('priority.tooltip.retry')}
-            </button>
-          )}
-        </div>
+      <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
+        {phishingSection}
+        <TooltipMessage message={t('priority.tooltip.noData')} onRetry={onRetry} />
       </PriorityTooltipContainer>
     );
   }
 
   return (
-    <PriorityTooltipContainer emailId={emailId}>
+    <PriorityTooltipContainer emailId={emailId} onClose={onClose}>
       <PriorityTooltipContent
         loadingPriorityExplanation={loadingPriorityExplanation}
         priorityExplanation={priorityExplanation}
@@ -142,6 +148,7 @@ export const PriorityTooltip: React.FC<PriorityTooltipProps> = ({
         protoCategoryDescription={protoCategoryDescription}
         emailId={emailId}
         currentCategoryId={currentCategoryId}
+        phishingSection={phishingSection}
         onClose={onClose}
         onProvideFeedback={onProvideFeedback}
         onExpedite={onExpedite}

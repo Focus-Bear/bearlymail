@@ -72,6 +72,23 @@ describe("EmailInboxDecryptService — inbox summary derivation", () => {
     expect(service.decryptRawEmailRow(row).summary).toBeFalsy();
   });
 
+  it("exposes the phishing verdict, the sender checks and the summary source for the priority popover", () => {
+    const row = makeRow({
+      phishingConfidence: "high",
+      phishingReason: "Claims to be SendGrid from botmd.io.",
+      senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+      summarySource: "llm",
+    });
+    expect(service.decryptRawEmailRow(row)).toEqual(
+      expect.objectContaining({
+        phishingConfidence: "high",
+        phishingReason: "Claims to be SendGrid from botmd.io.",
+        senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+        summarySource: "llm",
+      }),
+    );
+  });
+
   it("exposes the proto-category ID so the client can promote it by ID", () => {
     const row = makeRow({ protoCategoryId: "proto-123" });
     expect(service.decryptRawEmailRow(row).protoCategoryId).toBe("proto-123");

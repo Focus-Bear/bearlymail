@@ -5,6 +5,7 @@
 
 import { INBOX_MODES } from "../constants/query-limits";
 import { EncryptionHelper } from "../encryption/encryption.helper";
+import type { SenderAuthResults } from "../utils/authentication-results.util";
 import {
   appendInboxScopeFilters,
   InboxScopeFilters,
@@ -86,6 +87,8 @@ export interface RawEmailRow {
   senderJobTitle: string | null;
   subject: string | null;
   summary: string | null;
+  /** NULL when the shown summary is only a preview derived from the body. */
+  summarySource: "llm" | "deterministic" | null;
   // Only populated for blank-summary rows (see INBOX_PREVIEW_BODY_COLUMNS_SQL) so
   // the inbox can derive a deterministic preview; NULL for every other row.
   body: string | null;
@@ -127,6 +130,8 @@ export interface RawEmailRow {
   correspondentName: string | null;
   phishingConfidence: "low" | "medium" | "high" | null;
   phishingReason: string | null;
+  /** Shown with the phishing verdict in the priority popover. */
+  senderAuthResults: SenderAuthResults | null;
   /** Encrypted JSON; only the derived method is sent to the client. */
   unsubscribeOptions?: string | null;
   priorityScore: number | null;

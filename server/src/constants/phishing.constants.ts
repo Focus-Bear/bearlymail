@@ -64,7 +64,53 @@ export const IMPERSONATED_BRANDS: readonly ImpersonatedBrand[] = [
   {
     brand: "Mailchimp",
     names: ["mailchimp"],
-    domains: ["mailchimp.com", "mcsv.net", "mcdlv.net", "intuit.com"],
+    domains: [
+      "mailchimp.com",
+      "mcsv.net",
+      "mcdlv.net",
+      "intuit.com",
+      "mandrillapp.com",
+    ],
+  },
+  {
+    brand: "Mailgun",
+    names: ["mailgun"],
+    domains: ["mailgun.com", "mailgun.net", "mailgun.org", "sinch.com"],
+  },
+  {
+    brand: "Postmark",
+    names: ["postmark", "postmarkapp"],
+    domains: ["postmarkapp.com", "wildbit.com", "activecampaign.com"],
+  },
+  {
+    brand: "Brevo",
+    names: ["brevo", "sendinblue"],
+    domains: ["brevo.com", "sendinblue.com", "brevosend.com"],
+  },
+  {
+    brand: "SparkPost",
+    names: ["sparkpost"],
+    domains: [
+      "sparkpost.com",
+      "sparkpostmail.com",
+      "messagebird.com",
+      "bird.com",
+    ],
+  },
+  {
+    brand: "Mailjet",
+    names: ["mailjet"],
+    domains: ["mailjet.com"],
+  },
+  {
+    brand: "Klaviyo",
+    names: ["klaviyo"],
+    domains: ["klaviyo.com", "klaviyomail.com"],
+  },
+  {
+    brand: "Constant Contact",
+    names: ["constant contact"],
+    domains: ["constantcontact.com"],
   },
   {
     brand: "PayPal",

@@ -159,7 +159,7 @@ describe("SummarizationService", () => {
         "thread-123",
         "et-123",
         "summary",
-        "bullet-points",
+        { summaryType: "bullet-points" },
       );
 
       expect(mockEmailRepository.update).toHaveBeenCalledWith(
@@ -169,6 +169,58 @@ describe("SummarizationService", () => {
           summarySource: "llm",
           summaryType: "bullet-points",
         },
+      );
+    });
+
+    it("stores the phishing verdict of the re-run analysis", async () => {
+      mockEmailsService.getThreadEmails.mockResolvedValue([
+        { id: "email-123", receivedAt: new Date("2024-01-01") },
+      ]);
+
+      await service.persistSummaryForThread(
+        "user-123",
+        "thread-123",
+        "et-123",
+        "summary",
+        {
+          phishingSignal: {
+            confidence: "high",
+            reason: "Claims to be SendGrid from botmd.io.",
+          },
+        },
+      );
+
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.anything() }),
+        {
+          summary: "summary",
+          summarySource: "llm",
+          summaryType: null,
+          phishingConfidence: "high",
+          phishingReason: "Claims to be SendGrid from botmd.io.",
+        },
+      );
+    });
+
+    it("clears the stored verdict when the re-run analysis finds none", async () => {
+      mockEmailsService.getThreadEmails.mockResolvedValue([
+        { id: "email-123", receivedAt: new Date("2024-01-01") },
+      ]);
+
+      await service.persistSummaryForThread(
+        "user-123",
+        "thread-123",
+        "et-123",
+        "summary",
+        { phishingSignal: null },
+      );
+
+      expect(mockEmailRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.anything() }),
+        expect.objectContaining({
+          phishingConfidence: null,
+          phishingReason: null,
+        }),
       );
     });
 

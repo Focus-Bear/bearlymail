@@ -53,4 +53,5 @@ export const EMOJI_MENU = '☰';
 export const EMOJI_DOWNLOAD = '⬇️';
 export const ICON_CLEAR_FORMATTING = 'T̶ₓ';
 export const EMOJI_SHIELD = '🛡️';
+export const EMOJI_PHISHING = '🛑';
 export const EMOJI_ROBOT = '🤖';

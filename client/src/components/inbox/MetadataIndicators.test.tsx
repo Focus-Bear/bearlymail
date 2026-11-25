@@ -29,6 +29,7 @@ vi.mock('theme/theme', () => ({
 vi.mock('constants/emojis', () => ({
   EMOJI_CHECK: '✅',
   EMOJI_NOTE: '📝',
+  EMOJI_PHISHING: '🛑',
 }));
 
 vi.mock('components/email-detail/emailPhishingWarning.helpers', () => ({

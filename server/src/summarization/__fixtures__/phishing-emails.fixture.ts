@@ -120,3 +120,78 @@ export const GITHUB_VERIFY_EMAIL: PhishingContextEmail = {
   body: "Please verify your email address to finish setting up your account.",
   htmlBody: `<a href="https://github.com/users/confirm">Verify email address</a>`,
 };
+
+/**
+ * A redacted copy of a third miss (report 2026-11-20_16-24-28, 2026-11-24):
+ * "SendGrid <noreply@botmd.io>", which passes SPF/DKIM/DMARC for itself and
+ * sends through SendGrid, so its links go through the sender's own branded
+ * click-tracking subdomain. The pretext is administrative, not a security
+ * one: sending is "paused" until the account "confirms its industry". The
+ * recipient, tracking tokens and link paths are removed; the sender domain is
+ * kept because it IS the signal. The detection rules always flagged it: the
+ * verdict was lost when stored (see ensureThreadSummaryFresh).
+ */
+const REDACTED_SENDER_CLICK_LINK = "http://url0000.botmd.io/ls/click";
+
+export const SENDGRID_INDUSTRY_CONFIRMATION_LURE: PhishingContextEmail = {
+  from: "noreply@botmd.io",
+  fromName: "SendGrid",
+  subject: "Confirm your industry to resume sending",
+  body: [
+    "Your sending is paused. Confirm your industry to resume.",
+    "Every account is required to confirm its industry category, which tells inbox providers how to treat your mail. Your account's category has not been confirmed, so sending has been paused in the meantime.",
+    "Confirming takes about ten seconds. Pick your industry from a single dropdown and you are done.",
+    "Please complete this as soon as possible. Sending stays paused until it is done, and it resumes automatically within a few minutes of confirming.",
+    "Confirm My Industry",
+    "Thanks,",
+    "SendGrid Account Services",
+    "Twilio SendGrid",
+  ].join("\n"),
+  htmlBody: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><body>
+<td>Your sending is paused. Confirm your industry to resume.</td>
+<td>Your account's category has not been confirmed, so sending has been paused in the meantime.</td>
+<a href="${REDACTED_SENDER_CLICK_LINK}">Confirm My Industry</a>
+<td>Thanks,<br />SendGrid Account Services</td>
+<td>Twilio SendGrid &middot; <a href="${REDACTED_SENDER_CLICK_LINK}">Support</a></td>
+</body></html>`,
+  senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+};
+
+/** The same lure without "paused": only the hold and the details request. */
+export const MAILGUN_COMPLIANCE_LURE: PhishingContextEmail = {
+  from: "alerts@billing-notices.example.org",
+  fromName: "Mailgun Compliance",
+  subject: "Action required: compliance hold on your domain",
+  body: "A compliance hold was placed on your domain. Please verify your business details and select your use case so we can review it.",
+  htmlBody: `<a href="https://billing-notices.example.org/review">Review now</a>`,
+  senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+};
+
+/** The real Mailgun, from its own domain, asking for the same details. */
+export const GENUINE_MAILGUN_BUSINESS_VERIFICATION: PhishingContextEmail = {
+  from: "support@mailgun.com",
+  fromName: "Mailgun",
+  subject: "Your account is under review",
+  body: "Your account is under review. To resume sending, please verify your business details in the control panel.",
+  htmlBody: `<a href="https://app.mailgun.com/settings/business">Verify business details</a>`,
+  senderAuthResults: { spf: "pass", dkim: "pass", dmarc: "pass" },
+};
+
+/** Postmark's own onboarding asking about the use case before approval. */
+export const GENUINE_POSTMARK_USE_CASE_REQUEST: PhishingContextEmail = {
+  from: "support@postmarkapp.com",
+  fromName: "Postmark",
+  subject: "Tell us about your use case",
+  body: "Before we approve your account for sending, please confirm your use case and the kind of email you send.",
+  htmlBody: `<a href="https://account.postmarkapp.com/approval">Confirm your use case</a>`,
+};
+
+/** A company's own newsletter that mentions compliance, from its own domain. */
+export const COMPLIANCE_NEWSLETTER: PhishingContextEmail = {
+  from: "news@contoso.example.test",
+  fromName: "Contoso – Microsoft Partner",
+  subject: "GDPR compliance for Microsoft 365: our webinar",
+  body: "Join our webinar on GDPR compliance for Microsoft 365, and how consent records work.",
+  htmlBody: `<a href="https://contoso.example.test/webinar">Register</a>`,
+};

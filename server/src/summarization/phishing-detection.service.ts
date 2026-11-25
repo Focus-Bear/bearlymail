@@ -87,6 +87,25 @@ export interface PhishingEmailContext {
   senderAuthResults?: SenderAuthResults | null;
 }
 
+/** The phishing columns stored on an email. */
+export interface StoredPhishingVerdict {
+  phishingConfidence: PhishingConfidence | null;
+  phishingReason: string | null;
+}
+
+/**
+ * The stored columns for a full analysis's verdict. No verdict clears them: a
+ * full analysis supersedes whatever an earlier one stored.
+ */
+export function toStoredPhishingVerdict(
+  signal: PhishingSignal | null | undefined,
+): StoredPhishingVerdict {
+  return {
+    phishingConfidence: signal?.confidence ?? null,
+    phishingReason: signal?.reason ?? null,
+  };
+}
+
 /**
  * The phishing verdict returned by the LLM as part of the summarisation response.
  */

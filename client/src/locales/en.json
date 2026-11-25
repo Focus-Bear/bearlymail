@@ -3108,7 +3108,7 @@
     "search": {
       "label": "Search help articles",
       "placeholder": "Search help, e.g. \"snooze\", \"connect Outlook\", \"not getting emails\"",
-      "noResults": "No articles match \"{{query}}\". Try different words, or use Send Feedback above to ask us directly.",
+      "noResults": "No articles match \"{{query}}\". Try different words, or clear the search and use Send Feedback to ask us directly.",
       "resultsLabel": "Search results"
     },
     "articles": {

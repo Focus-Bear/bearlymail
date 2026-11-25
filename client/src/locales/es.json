@@ -1815,7 +1815,7 @@
     "search": {
       "label": "Buscar artículos de ayuda",
       "placeholder": "Busca en la ayuda, p. ej. «posponer», «conectar Outlook», «no me llegan correos»",
-      "noResults": "Ningún artículo coincide con «{{query}}». Prueba con otras palabras o usa Enviar comentarios arriba para preguntarnos directamente.",
+      "noResults": "Ningún artículo coincide con «{{query}}». Prueba con otras palabras, o borra la búsqueda y usa Enviar comentarios para preguntarnos directamente.",
       "resultsLabel": "Resultados de la búsqueda"
     },
     "articles": {

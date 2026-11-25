@@ -9,7 +9,7 @@ jest.mock("./zoho-operations", () => ({
 
 const providerWithThread = (messageIds: string[]): ZohoProvider =>
   ({
-    logger: { log: jest.fn() },
+    logger: { log: jest.fn(), error: jest.fn() },
     zohoAccountsService: {
       findPrimary: jest.fn().mockResolvedValue({
         id: "acc-row",
@@ -57,6 +57,19 @@ describe("Zoho sendReply (#515)", () => {
       }),
     );
     expect(result).toEqual({ messageId: "m-1", threadId: "t-1" });
+  });
+
+  it("logs why Zoho refused a reply, without the message text", async () => {
+    (sendReplyViaZoho as jest.Mock).mockRejectedValueOnce(
+      new Error("Request failed with status code 400"),
+    );
+    const provider = providerWithThread(["222"]);
+
+    await expect(sendReply(provider, "user-1", REPLY)).rejects.toThrow();
+
+    const logged = (provider.logger.error as jest.Mock).mock.calls[0][0];
+    expect(logged).toContain("status code 400");
+    expect(logged).not.toContain("Hello");
   });
 
   it("passes no message id when the thread has none", async () => {

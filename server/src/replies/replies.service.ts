@@ -45,7 +45,10 @@ import {
 import { followUpDaysFromHours } from "../utils/expected-reply.util";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
-import { toPlainTextBody } from "../utils/plain-text-body.util";
+import {
+  receivedEmailText,
+  toPlainTextBody,
+} from "../utils/plain-text-body.util";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { buildForwardBody, buildForwardHtmlBody } from "./forward-body.helpers";
 import {
@@ -522,8 +525,7 @@ ${closing}`;
     // Both halves become plain text (#514); buildReplyQuotedHtmlBody carries
     // the formatting.
     const plainUserText = toPlainTextBody(userText);
-    const originalBody = originalEmail.body;
-    if (!originalBody) {
+    if (!originalEmail.body) {
       return plainUserText;
     }
 
@@ -533,7 +535,7 @@ ${closing}`;
     const dateStr = originalEmail.receivedAt.toUTCString();
 
     const quotedHeader = `On ${dateStr}, ${fromDisplay} wrote:`;
-    const quotedBody = toPlainTextBody(originalBody)
+    const quotedBody = receivedEmailText(originalEmail)
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");

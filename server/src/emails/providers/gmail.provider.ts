@@ -441,8 +441,9 @@ export class GmailProvider implements EmailProvider {
     const emailContent = buildEmailContent({
       to,
       subject,
-      // plain-text fallback for email clients that don't render HTML
-      body: toPlainTextBody(body),
+      // plain-text fallback for email clients that don't render HTML; with a
+      // separate htmlBody, `body` already is that text
+      body: htmlBody ? body : toPlainTextBody(body),
       // Prefer an explicit HTML body (e.g. forwards with <br> signatures); fall
       // back to treating `body` as HTML for callers that pass rich HTML there.
       htmlBody: htmlBody ?? body,

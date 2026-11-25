@@ -1,5 +1,8 @@
 import { Email } from "../database/entities/email.entity";
-import { toPlainTextBody } from "../utils/plain-text-body.util";
+import {
+  receivedEmailText,
+  toPlainTextBody,
+} from "../utils/plain-text-body.util";
 
 /** Escape the HTML-significant characters so text renders literally. */
 const escapeHtml = (value: string): string =>
@@ -28,9 +31,7 @@ export function buildForwardBody(
 
   // This is the text part, so no tags (#514); the rich content is carried by
   // buildForwardHtmlBody.
-  const originalBody = toPlainTextBody(
-    originalEmail.body || originalEmail.htmlBody || "",
-  );
+  const originalBody = receivedEmailText(originalEmail);
 
   return `${toPlainTextBody(userText)}\n\n${header}\n\n${originalBody}`;
 }

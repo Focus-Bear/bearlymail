@@ -1,4 +1,5 @@
 import { ERROR_MESSAGES } from "../../../constants/error-messages";
+import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import {
   EmailAttachmentData,
   EmailRecipient,
@@ -89,6 +90,9 @@ export async function sendReply(
       );
       return sendReply(provider, userId, params);
     }
+    provider.logger.error(
+      `[Zoho] sendReply failed for user ${userId}: ${sanitizeAxiosError(error)}`,
+    );
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
   }
 }
@@ -138,6 +142,9 @@ export async function sendEmail(
       );
       return sendEmail(provider, userId, params);
     }
+    provider.logger.error(
+      `[Zoho] sendEmail failed for user ${userId}: ${sanitizeAxiosError(error)}`,
+    );
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
   }
 }

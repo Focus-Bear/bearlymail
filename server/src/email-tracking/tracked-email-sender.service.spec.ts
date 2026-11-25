@@ -388,6 +388,32 @@ describe("TrackedEmailSender", () => {
       expect(provider.sendReply.mock.calls[0][1].body).toBe("Hello\n\nBye");
     });
 
+    it("does not convert a text part twice, so mentioned tags and addresses survive", async () => {
+      const text = "Use <b> here\n\nFrom: Jo <jo@example.com>\n> a <div> tag";
+      provider.sendsPlainTextOnly = true;
+
+      await sender.sendEmail(
+        USER_ID,
+        asProvider(),
+        {
+          to: [{ email: "alice@example.com" }],
+          subject: "Fwd: Hi",
+          body: text,
+          htmlBody: html,
+        },
+        options,
+      );
+      await sender.sendReply(
+        USER_ID,
+        asProvider(),
+        { ...replyParams(html), body: text },
+        options,
+      );
+
+      expect(provider.sendEmail.mock.calls[0][1].body).toBe(text);
+      expect(provider.sendReply.mock.calls[0][1].body).toBe(text);
+    });
+
     it("keeps an HTML-only reply body as is, since providers render it as HTML", async () => {
       await sender.sendReply(
         USER_ID,

@@ -92,6 +92,20 @@ function describeTrackingOutcome(
  * Automated sends — auto-responder, workflows, calendar RSVPs — deliberately
  * keep calling the provider directly so they are never tracked.
  */
+/**
+ * The text part of a reply (#514). A body that differs from the HTML part is
+ * already text. With no HTML part, most providers send `body` as the HTML, so
+ * only a text-only provider (Apple Mail) gets it converted.
+ */
+function replyTextPart(
+  { body, options }: ProviderReplyParams,
+  provider: EmailProvider,
+): string {
+  const isHtmlPart = body === options?.htmlBody;
+  const isOnlyPart = !options?.htmlBody && provider.sendsPlainTextOnly;
+  return isHtmlPart || isOnlyPart ? toPlainTextBody(body) : body;
+}
+
 @Injectable()
 export class TrackedEmailSender {
   private readonly logger = new Logger(TrackedEmailSender.name);
@@ -123,12 +137,7 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendReply(userId, {
       ...params,
-      // Without an HTML part some providers send `body` as the HTML, so it is
-      // only stripped when there is one or the provider is text-only (#514).
-      body:
-        htmlBody || provider.sendsPlainTextOnly
-          ? toPlainTextBody(params.body)
-          : params.body,
+      body: replyTextPart(params, provider),
       options: params.options && { ...params.options, htmlBody: finalHtml },
     });
 
@@ -156,9 +165,11 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendEmail(userId, {
       ...params,
-      // The HTML is in htmlBody, so `body` is only the text part. Apple Mail
-      // sends just that part, and IMAP sends it alongside the HTML (#514).
-      body: toPlainTextBody(stripTrackingPixels(params.body)),
+      // Apple Mail sends just this text part, and IMAP sends it alongside the
+      // HTML (#514). With a separate htmlBody, `body` already is the text.
+      body: params.htmlBody
+        ? stripTrackingPixels(params.body)
+        : toPlainTextBody(stripTrackingPixels(params.body)),
       htmlBody: finalHtml,
     });
 

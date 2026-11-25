@@ -2,6 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 
 import {
   MAX_ADDITIONAL_GUESTS,
+  MAX_BOOKING_HORIZON_DAYS,
   MAX_GUEST_EMAIL_LENGTH,
   MAX_GUEST_NAME_LENGTH,
 } from "../constants/booking-constants";
@@ -99,4 +100,62 @@ export function parsePublicBookingRequest(body: unknown): PublicBookingRequest {
     additionalGuests: parseAdditionalGuests(input.additionalGuests),
     agenda: parseAgenda(input.agenda),
   };
+}
+
+export interface PublicSlotsQuery {
+  daysAhead: number;
+  offset: number;
+  limit: number;
+  afterDate: Date | undefined;
+}
+
+function parseNonNegativeInt(
+  name: string,
+  raw: unknown,
+  fallback: number,
+  max: number,
+): number {
+  if (raw === undefined || raw === "") return fallback;
+  const text = String(raw);
+  if (!/^\d+$/.test(text)) {
+    throw new BadRequestException(`${name} must be a non-negative integer`);
+  }
+  return Math.min(Number(text), max);
+}
+
+/**
+ * Validates the query of the unauthenticated slots endpoint. Each request reads
+ * the host's calendar, so the search window is capped at the booking horizon
+ * and malformed numbers or dates are rejected instead of reaching the service.
+ */
+export function parsePublicSlotsQuery(
+  query: Record<string, unknown>,
+  defaults: { daysAhead: number; limit: number; maxLimit: number },
+): PublicSlotsQuery {
+  const daysAhead = parseNonNegativeInt(
+    "daysAhead",
+    query.daysAhead,
+    defaults.daysAhead,
+    MAX_BOOKING_HORIZON_DAYS,
+  );
+  const offset = parseNonNegativeInt(
+    "offset",
+    query.offset,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
+  const limit = parseNonNegativeInt(
+    "limit",
+    query.limit,
+    defaults.limit,
+    defaults.maxLimit,
+  );
+  let afterDate: Date | undefined;
+  if (query.afterDate !== undefined && query.afterDate !== "") {
+    afterDate = new Date(String(query.afterDate));
+    if (Number.isNaN(afterDate.getTime())) {
+      throw new BadRequestException("afterDate must be a valid date");
+    }
+  }
+  return { daysAhead, offset, limit, afterDate };
 }

@@ -1,6 +1,10 @@
 import { BadRequestException } from "@nestjs/common";
 
-import { parsePublicBookingRequest } from "./public-booking-request";
+import { MAX_BOOKING_HORIZON_DAYS } from "../constants/booking-constants";
+import {
+  parsePublicBookingRequest,
+  parsePublicSlotsQuery,
+} from "./public-booking-request";
 
 const valid = {
   startTime: "2026-12-01T10:00:00Z",
@@ -75,5 +79,49 @@ describe("parsePublicBookingRequest", () => {
     });
 
     expect(parsed.agenda).toBe("Quarterly review");
+  });
+});
+
+describe("parsePublicSlotsQuery", () => {
+  const defaults = { daysAhead: 14, limit: 8, maxLimit: 50 };
+
+  it("uses the defaults when nothing is given", () => {
+    expect(parsePublicSlotsQuery({}, defaults)).toEqual({
+      daysAhead: 14,
+      offset: 0,
+      limit: 8,
+      afterDate: undefined,
+    });
+  });
+
+  it("caps daysAhead at the booking horizon and limit at maxLimit", () => {
+    const parsed = parsePublicSlotsQuery(
+      { daysAhead: "99999", limit: "1000", offset: "16" },
+      defaults,
+    );
+
+    expect(parsed.daysAhead).toBe(MAX_BOOKING_HORIZON_DAYS);
+    expect(parsed.limit).toBe(50);
+    expect(parsed.offset).toBe(16);
+  });
+
+  it("parses a valid afterDate", () => {
+    const parsed = parsePublicSlotsQuery(
+      { afterDate: "2026-12-01T10:00:00Z" },
+      defaults,
+    );
+
+    expect(parsed.afterDate?.toISOString()).toBe("2026-12-01T10:00:00.000Z");
+  });
+
+  it.each([
+    ["a non-numeric offset", { offset: "abc" }],
+    ["a negative daysAhead", { daysAhead: "-5" }],
+    ["a fractional limit", { limit: "2.5" }],
+    ["an invalid afterDate", { afterDate: "not-a-date" }],
+  ])("rejects %s", (_label, query) => {
+    expect(() => parsePublicSlotsQuery(query, defaults)).toThrow(
+      BadRequestException,
+    );
   });
 });

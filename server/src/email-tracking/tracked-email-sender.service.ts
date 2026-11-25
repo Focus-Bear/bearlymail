@@ -24,6 +24,7 @@ import {
 import { orgIncludesEmailTracking } from "../subscriptions/plan-features.util";
 import { resolveBackendBaseUrl } from "../utils/backend-base-url.util";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { toPlainTextBody } from "../utils/plain-text-body.util";
 import {
   buildTrackingPixelUrl,
   generateTrackingToken,
@@ -122,6 +123,12 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendReply(userId, {
       ...params,
+      // Without an HTML part some providers send `body` as the HTML, so it is
+      // only stripped when there is one or the provider is text-only (#514).
+      body:
+        htmlBody || provider.sendsPlainTextOnly
+          ? toPlainTextBody(params.body)
+          : params.body,
       options: params.options && { ...params.options, htmlBody: finalHtml },
     });
 
@@ -149,7 +156,9 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendEmail(userId, {
       ...params,
-      body: stripTrackingPixels(params.body),
+      // The HTML is in htmlBody, so `body` is only the text part. Apple Mail
+      // sends just that part, and IMAP sends it alongside the HTML (#514).
+      body: toPlainTextBody(stripTrackingPixels(params.body)),
       htmlBody: finalHtml,
     });
 

@@ -114,21 +114,77 @@ describe("Zoho attachments (#515)", () => {
     });
   });
 
-  it("sends a reply with the uploaded attachments", async () => {
-    const { client, post } = fakeZohoClient();
-
-    await sendReplyViaZoho(client, ACCOUNT_ID, {
-      to: "friend@example.com",
+  describe("sendReplyViaZoho", () => {
+    const reply = {
+      to: "Friend <friend@example.com>, other@example.com",
       subject: "Report",
       htmlBody: "<p>Here it is.</p>",
-      threadId: "thread-1",
-      attachments: [pdf],
+      replyToMessageId: "1710915488416100001",
+    };
+
+    it("uses Zoho's reply request, threaded under the message", async () => {
+      const { client, post } = fakeZohoClient();
+
+      const sent = await sendReplyViaZoho(client, ACCOUNT_ID, "me@zoho.com", {
+        ...reply,
+        cc: "Boss <boss@example.com>",
+        bcc: "audit@example.com",
+      });
+
+      expect(post).toHaveBeenCalledTimes(1);
+      expect(post).toHaveBeenCalledWith(`${SEND_PATH}/1710915488416100001`, {
+        action: "reply",
+        fromAddress: "me@zoho.com",
+        toAddress: "friend@example.com,other@example.com",
+        ccAddress: "boss@example.com",
+        bccAddress: "audit@example.com",
+        subject: "Re: Report",
+        content: "<p>Here it is.</p>",
+        mailFormat: "html",
+      });
+      expect(sent.messageId).toBe("m-1");
     });
 
-    const sendCall = post.mock.calls.find(([url]) => url === SEND_PATH);
-    expect((sendCall?.[1] as any).attachments).toEqual([
-      expect.objectContaining({ attachmentName: "report.pdf" }),
-    ]);
+    it("does not add a second Re: to the subject", async () => {
+      const { client, post } = fakeZohoClient();
+
+      await sendReplyViaZoho(client, ACCOUNT_ID, "me@zoho.com", {
+        ...reply,
+        subject: "RE: Report",
+      });
+
+      expect(post.mock.calls[0][1]).toMatchObject({ subject: "RE: Report" });
+    });
+
+    it("sends a reply with files through send-with-attachments, so they are not dropped", async () => {
+      const { client, post } = fakeZohoClient();
+
+      await sendReplyViaZoho(client, ACCOUNT_ID, "me@zoho.com", {
+        ...reply,
+        attachments: [pdf],
+      });
+
+      const sendCall = post.mock.calls.find(([url]) => url === SEND_PATH);
+      expect(sendCall?.[1]).toMatchObject({
+        fromAddress: "me@zoho.com",
+        toAddress: "friend@example.com,other@example.com",
+        subject: "Re: Report",
+        attachments: [
+          expect.objectContaining({ attachmentName: "report.pdf" }),
+        ],
+      });
+    });
+
+    it("still sends when no Zoho message id is known for the thread", async () => {
+      const { client, post } = fakeZohoClient();
+
+      await sendReplyViaZoho(client, ACCOUNT_ID, "me@zoho.com", {
+        ...reply,
+        replyToMessageId: undefined,
+      });
+
+      expect(post.mock.calls[0][0]).toBe(SEND_PATH);
+    });
   });
 
   it("does not send the email when an upload fails", async () => {

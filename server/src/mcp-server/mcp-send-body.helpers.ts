@@ -1,15 +1,4 @@
-/**
- * Real HTML tags an email body would use. Stricter than `looksLikeHtml`, which
- * matches anything shaped like `<word…>`: plain text from an MCP client often
- * has `<jane@example.com>` or `<https://…>`, and treating those as HTML would
- * drop the line breaks and hide the address or link. The tag name must be
- * followed by whitespace, `/` or `>`, so `<b@example.com>` is not `<b>`.
- * The attribute part is bounded to avoid catastrophic backtracking (CWE-1333).
- */
-const HTML_TAG_PATTERN =
-  /<\/?(?:a|b|i|u|p|br|hr|div|span|strong|em|ul|ol|li|h[1-6]|blockquote|pre|code|table|thead|tbody|tr|td|th|img|font|html|body)(?=[\s/>])[^>]{0,2048}>/i;
-
-const isHtmlBody = (body: string): boolean => HTML_TAG_PATTERN.test(body);
+import { isHtmlBody } from "../utils/plain-text-body.util";
 
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",

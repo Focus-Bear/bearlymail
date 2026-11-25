@@ -24,6 +24,7 @@ import {
 import { orgIncludesEmailTracking } from "../subscriptions/plan-features.util";
 import { resolveBackendBaseUrl } from "../utils/backend-base-url.util";
 import { parseRecipientsFromString } from "../utils/email-address.utils";
+import { toPlainTextBody } from "../utils/plain-text-body.util";
 import {
   buildTrackingPixelUrl,
   generateTrackingToken,
@@ -91,6 +92,20 @@ function describeTrackingOutcome(
  * Automated sends — auto-responder, workflows, calendar RSVPs — deliberately
  * keep calling the provider directly so they are never tracked.
  */
+/**
+ * The text part of a reply (#514). A body that differs from the HTML part is
+ * already text. With no HTML part, most providers send `body` as the HTML, so
+ * only a text-only provider (Apple Mail) gets it converted.
+ */
+function replyTextPart(
+  { body, options }: ProviderReplyParams,
+  provider: EmailProvider,
+): string {
+  const isHtmlPart = body === options?.htmlBody;
+  const isOnlyPart = !options?.htmlBody && provider.sendsPlainTextOnly;
+  return isHtmlPart || isOnlyPart ? toPlainTextBody(body) : body;
+}
+
 @Injectable()
 export class TrackedEmailSender {
   private readonly logger = new Logger(TrackedEmailSender.name);
@@ -122,6 +137,7 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendReply(userId, {
       ...params,
+      body: replyTextPart(params, provider),
       options: params.options && { ...params.options, htmlBody: finalHtml },
     });
 
@@ -149,7 +165,11 @@ export class TrackedEmailSender {
 
     const sent = await provider.sendEmail(userId, {
       ...params,
-      body: stripTrackingPixels(params.body),
+      // Apple Mail sends just this text part, and IMAP sends it alongside the
+      // HTML (#514). With a separate htmlBody, `body` already is the text.
+      body: params.htmlBody
+        ? stripTrackingPixels(params.body)
+        : toPlainTextBody(stripTrackingPixels(params.body)),
       htmlBody: finalHtml,
     });
 

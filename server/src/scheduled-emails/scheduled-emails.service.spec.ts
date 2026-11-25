@@ -337,7 +337,12 @@ describe("ScheduledEmailsService", () => {
       );
       expect(arg.htmlBody).toContain("Daniel</div>");
       expect(arg.htmlBody).not.toContain("\n");
+      // The text part, which Apple Mail sends on its own, has no tags.
+      expect(arg.body).toContain("FYI, see below.");
       expect(arg.body).toContain("---------- Forwarded message ---------");
+      expect(arg.body).toContain("From: Nicola <nicola@example.com>");
+      expect(arg.body).toContain("Numbers attached");
+      expect(arg.body).not.toMatch(/<\/?(p|div|br)/);
     });
 
     it("still sends the note when the original email can no longer be loaded", async () => {

@@ -277,8 +277,8 @@ export class ScheduledEmailsService {
       );
     } else {
       // New emails are composed in the rich-text editor, so the body is HTML.
-      // The tracked sender sends it as the HTML part (and providers build the
-      // plain-text part from it), the same as an immediate send from Compose.
+      // The tracked sender sends it as the HTML part and builds the plain-text
+      // part from it, the same as an immediate send from Compose.
       await this.sendScheduledNewEmail(
         scheduledEmail,
         userId,

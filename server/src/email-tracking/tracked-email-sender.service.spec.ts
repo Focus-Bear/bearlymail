@@ -355,4 +355,87 @@ describe("TrackedEmailSender", () => {
       }),
     ).resolves.toEqual(SENT);
   });
+
+  describe("plain-text part (#514)", () => {
+    const html = "<p>Hello</p><p>Bye</p>";
+    const options = { source: TRACKED_SEND_SOURCE.SCHEDULED_NEW };
+
+    it("sends a composed email as HTML plus text with no tags", async () => {
+      await sender.sendEmail(
+        USER_ID,
+        asProvider(),
+        {
+          to: [{ email: "alice@example.com" }],
+          subject: "Hi",
+          body: html,
+        },
+        options,
+      );
+
+      expect(sentEmailHtml()).toContain(html);
+      expect(provider.sendEmail.mock.calls[0][1].body).toBe("Hello\n\nBye");
+    });
+
+    it("strips the text part of a reply that has an HTML part", async () => {
+      await sender.sendReply(
+        USER_ID,
+        asProvider(),
+        { ...replyParams(html), body: html },
+        options,
+      );
+
+      expect(sentReplyHtml()).toContain(html);
+      expect(provider.sendReply.mock.calls[0][1].body).toBe("Hello\n\nBye");
+    });
+
+    it("does not convert a text part twice, so mentioned tags and addresses survive", async () => {
+      const text = "Use <b> here\n\nFrom: Jo <jo@example.com>\n> a <div> tag";
+      provider.sendsPlainTextOnly = true;
+
+      await sender.sendEmail(
+        USER_ID,
+        asProvider(),
+        {
+          to: [{ email: "alice@example.com" }],
+          subject: "Fwd: Hi",
+          body: text,
+          htmlBody: html,
+        },
+        options,
+      );
+      await sender.sendReply(
+        USER_ID,
+        asProvider(),
+        { ...replyParams(html), body: text },
+        options,
+      );
+
+      expect(provider.sendEmail.mock.calls[0][1].body).toBe(text);
+      expect(provider.sendReply.mock.calls[0][1].body).toBe(text);
+    });
+
+    it("keeps an HTML-only reply body as is, since providers render it as HTML", async () => {
+      await sender.sendReply(
+        USER_ID,
+        asProvider(),
+        { ...replyParams(undefined), body: html },
+        options,
+      );
+
+      expect(provider.sendReply.mock.calls[0][1].body).toBe(html);
+    });
+
+    it("strips an HTML-only reply body for a text-only provider (Apple Mail)", async () => {
+      provider.sendsPlainTextOnly = true;
+
+      await sender.sendReply(
+        USER_ID,
+        asProvider(),
+        { ...replyParams(undefined), body: html },
+        options,
+      );
+
+      expect(provider.sendReply.mock.calls[0][1].body).toBe("Hello\n\nBye");
+    });
+  });
 });

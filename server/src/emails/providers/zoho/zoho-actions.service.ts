@@ -29,7 +29,7 @@ export async function sendReply(
   },
 ): Promise<{ messageId: string; threadId: string }> {
   const { threadId, to, subject, body, options } = params;
-  const { htmlBody, cc, bcc } = options ?? {};
+  const { htmlBody, cc, bcc, attachments } = options ?? {};
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -53,6 +53,7 @@ export async function sendReply(
       threadId,
       cc,
       bcc,
+      attachments,
     });
     provider.logger.log(`Reply sent for user ${userId} to ${to}`);
     return { messageId: result.messageId, threadId };
@@ -82,14 +83,6 @@ export async function sendEmail(
   },
 ): Promise<{ messageId: string; threadId: string }> {
   const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
-  if (attachments && attachments.length > 0) {
-    // TODO: Zoho attachments require a separate upload step (POST the file to
-    // /messages/attachments, then reference the returned id on send). Not yet
-    // implemented — warn rather than silently dropping so the gap is visible.
-    provider.logger.warn(
-      `[Zoho] sendEmail received ${attachments.length} attachment(s) for user ${userId}, but Zoho attachment upload is not implemented — sending without them.`,
-    );
-  }
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -111,6 +104,7 @@ export async function sendEmail(
       body: htmlBody ?? body,
       cc,
       bcc,
+      attachments,
     });
   } catch (error: unknown) {
     if (isAuthError(error)) {

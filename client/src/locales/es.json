@@ -1546,7 +1546,11 @@
     "focusBearDurationTooLong": "Una tarea puede durar hasta 24 horas.",
     "focusBearDurationMinutes": "{{minutes}} min",
     "focusBearDurationHours": "{{hours}} h",
-    "focusBearDurationHoursMinutes": "{{hours}} h {{minutes}} min"
+    "focusBearDurationHoursMinutes": "{{hours}} h {{minutes}} min",
+    "remoteImages": {
+      "blocked": "Las imágenes están ocultas para que los remitentes no sepan cuándo abres este correo.",
+      "show": "Mostrar imágenes"
+    }
   },
   "contacts": {
     "title": "Contactos",

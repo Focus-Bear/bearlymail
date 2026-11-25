@@ -4,6 +4,7 @@ import { AxiosInstance } from "axios";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { isApiError } from "../../../types/common";
 import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
+import { EmailAttachmentData } from "../../interfaces/email-provider.interface";
 import { ZohoMailMessage } from "./zoho-message-parser";
 
 const logger = new Logger("ZohoOperations");
@@ -119,6 +120,54 @@ function parseRecipientsToZoho(
 /**
  * Send a reply email via Zoho
  */
+/** A file already uploaded to Zoho, in the shape the send API expects. */
+export interface ZohoUploadedAttachment {
+  storeName: string;
+  attachmentPath: string;
+  attachmentName: string;
+}
+
+/** Zoho rejects a fileName that contains a path, so keep only the last part. */
+function zohoFileName(filename: string): string {
+  const name = filename.split(/[\\/]/).pop()?.trim();
+  return name || "attachment";
+}
+
+/**
+ * Uploads attachments to Zoho before a send (#515). Zoho cannot take file
+ * content in the send request itself: each file is uploaded first, and the
+ * send then references the returned storeName/attachmentPath. Throws if any
+ * upload fails, so the send fails visibly instead of going out without files.
+ */
+export async function uploadAttachmentsToZoho(
+  zohoClient: AxiosInstance,
+  zohoAccountId: string,
+  attachments: EmailAttachmentData[] | undefined,
+): Promise<ZohoUploadedAttachment[]> {
+  const uploaded: ZohoUploadedAttachment[] = [];
+  for (const attachment of attachments ?? []) {
+    const fileName = zohoFileName(attachment.filename);
+    const response = await zohoClient.post(
+      `/accounts/${zohoAccountId}/messages/attachments`,
+      attachment.content,
+      {
+        params: { fileName },
+        headers: { "Content-Type": "application/octet-stream" },
+      },
+    );
+    const stored = response?.data?.data;
+    if (!stored?.storeName || !stored?.attachmentPath) {
+      throw new Error(`Zoho did not accept attachment "${fileName}"`);
+    }
+    uploaded.push({
+      storeName: stored.storeName,
+      attachmentPath: stored.attachmentPath,
+      attachmentName: stored.attachmentName || fileName,
+    });
+  }
+  return uploaded;
+}
+
 export async function sendReplyViaZoho(
   zohoClient: AxiosInstance,
   zohoAccountId: string,
@@ -129,15 +178,25 @@ export async function sendReplyViaZoho(
     threadId: string;
     cc?: string;
     bcc?: string;
+    attachments?: EmailAttachmentData[];
   },
 ): Promise<{ messageId: string }> {
-  const { to, subject, htmlBody, threadId, cc, bcc } = options;
+  const { to, subject, htmlBody, threadId, cc, bcc, attachments } = options;
   const message: Record<string, unknown> = {
     to: parseRecipientsToZoho(to),
     subject: subject.startsWith("Re:") ? subject : `Re: ${subject}`,
     content: { html: htmlBody },
     inReplyTo: threadId,
   };
+
+  const uploaded = await uploadAttachmentsToZoho(
+    zohoClient,
+    zohoAccountId,
+    attachments,
+  );
+  if (uploaded.length > 0) {
+    message.attachments = uploaded;
+  }
 
   if (cc) {
     message.cc = parseRecipientsToZoho(cc);
@@ -169,11 +228,12 @@ export async function sendEmailViaZoho(
     body: string;
     cc?: Array<{ email: string; name?: string }>;
     bcc?: Array<{ email: string; name?: string }>;
+    attachments?: EmailAttachmentData[];
   },
 ): Promise<{ messageId: string; threadId: string }> {
-  const { to, subject, body: htmlBody, cc, bcc } = params;
+  const { to, subject, body: htmlBody, cc, bcc, attachments } = params;
 
-  const message: Record<string, string> = {
+  const message: Record<string, unknown> = {
     fromAddress,
     toAddress: to.map((recipient) => recipient.email).join(","),
     subject,
@@ -184,6 +244,15 @@ export async function sendEmailViaZoho(
     message.ccAddress = cc.map((recipient) => recipient.email).join(",");
   if (bcc?.length)
     message.bccAddress = bcc.map((recipient) => recipient.email).join(",");
+
+  const uploaded = await uploadAttachmentsToZoho(
+    zohoClient,
+    zohoAccountId,
+    attachments,
+  );
+  if (uploaded.length > 0) {
+    message.attachments = uploaded;
+  }
 
   const response = await zohoClient.post(
     `/accounts/${zohoAccountId}/messages`,

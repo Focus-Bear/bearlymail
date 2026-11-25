@@ -268,4 +268,111 @@ describe("ScheduledEmailsService", () => {
       );
     });
   });
+
+  describe("sendScheduledEmail (forward and new email html, #514)", () => {
+    const SENT = { messageId: "msg-1", threadId: "thread-9" };
+    const ORIGINAL = {
+      id: "email-1",
+      from: "nicola@example.com",
+      fromName: "Nicola",
+      to: "me@example.com",
+      subject: "Quarterly numbers",
+      body: "Numbers attached",
+      htmlBody: "<div>Numbers attached</div>",
+      receivedAt: new Date("2026-11-20T09:00:00Z"),
+    };
+
+    const wireMocks = (getEmailById: jest.Mock) => {
+      const sendEmail = jest.fn().mockResolvedValue(SENT);
+      (service as any).usersService = {
+        findOne: jest.fn().mockResolvedValue({ emailSignature: "Daniel" }),
+      };
+      (service as any).emailProviderManager = {
+        getPrimaryProvider: jest.fn().mockResolvedValue({ sendEmail }),
+      };
+      (service as any).emailsService = { getEmailById };
+      (service as any).contactsService = {
+        incrementContactFrequency: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as any).followUpsService = {
+        createFollowUpForSentMessage: jest.fn().mockResolvedValue(null),
+      };
+      repo.save.mockResolvedValue({} as any);
+      return sendEmail;
+    };
+
+    const entity = (
+      emailType: "forward" | "new",
+      body: string,
+    ): ScheduledEmail =>
+      ({
+        id: "sched-3",
+        userId: "user-1",
+        emailType,
+        emailId: emailType === "forward" ? "email-1" : null,
+        to: [{ email: "someone@example.com" }],
+        cc: [],
+        bcc: [],
+        subject: emailType === "forward" ? "Fwd: Quarterly numbers" : "Hi",
+        body,
+        attachments: null,
+        forwardAttachmentIds: null,
+      }) as unknown as ScheduledEmail;
+
+    it("sends a forward with the original email and an HTML part, like an immediate forward", async () => {
+      const sendEmail = wireMocks(jest.fn().mockResolvedValue({ ...ORIGINAL }));
+
+      await (service as any).sendScheduledEmail(
+        entity("forward", "<p>FYI, see below.</p>"),
+      );
+
+      const arg = sendEmail.mock.calls[0][1];
+      expect(arg.htmlBody).toContain("<p>FYI, see below.</p>");
+      expect(arg.htmlBody).toContain("---------- Forwarded message ---------");
+      expect(arg.htmlBody).toContain("Subject: Quarterly numbers");
+      expect(arg.htmlBody).toContain("<div>Numbers attached</div>");
+      // Header lines and the signature keep their breaks in the HTML part.
+      expect(arg.htmlBody).toContain(
+        "<br>From: Nicola &lt;nicola@example.com&gt;",
+      );
+      expect(arg.htmlBody).toContain("Daniel</div>");
+      expect(arg.htmlBody).not.toContain("\n");
+      // The text part, which Apple Mail sends on its own, has no tags.
+      expect(arg.body).toContain("FYI, see below.");
+      expect(arg.body).toContain("---------- Forwarded message ---------");
+      expect(arg.body).toContain("From: Nicola <nicola@example.com>");
+      expect(arg.body).toContain("Numbers attached");
+      expect(arg.body).not.toMatch(/<\/?(p|div|br)/);
+    });
+
+    it("still sends the note when the original email can no longer be loaded", async () => {
+      const sendEmail = wireMocks(
+        jest.fn().mockRejectedValue(new Error("not found")),
+      );
+
+      await (service as any).sendScheduledEmail(
+        entity("forward", "<p>FYI, see below.</p>"),
+      );
+
+      const arg = sendEmail.mock.calls[0][1];
+      expect(arg.body).toContain("<p>FYI, see below.</p>");
+      expect(arg.body).not.toContain("Forwarded message");
+      expect(arg.htmlBody).toBeUndefined();
+    });
+
+    it("sends a composed HTML email as HTML with the signature on its own line", async () => {
+      const sendEmail = wireMocks(jest.fn());
+
+      await (service as any).sendScheduledEmail(
+        entity("new", "<p>Hello</p><p>See you Monday.</p>"),
+      );
+
+      // The tracked sender uses body as the HTML part when no htmlBody is
+      // given, so this is what the recipient renders.
+      const arg = sendEmail.mock.calls[0][1];
+      expect(arg.body).toContain("<p>Hello</p><p>See you Monday.</p>");
+      expect(arg.body).toContain("<br><br>");
+      expect(arg.body).not.toContain("\n\n-- \n");
+    });
+  });
 });

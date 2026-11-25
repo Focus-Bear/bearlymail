@@ -131,6 +131,8 @@ import { StuckPriorityDetectionService } from "./stuck-priority-detection.servic
 import { SyncHistoryService } from "./sync-history.service";
 import { EmailUnsubscribeController } from "./unsubscribe/email-unsubscribe.controller";
 import { EmailUnsubscribeService } from "./unsubscribe/email-unsubscribe.service";
+import { MailingListsController } from "./unsubscribe/mailing-lists.controller";
+import { MailingListsService } from "./unsubscribe/mailing-lists.service";
 
 @Module({
   imports: [
@@ -193,11 +195,13 @@ import { EmailUnsubscribeService } from "./unsubscribe/email-unsubscribe.service
     EmailSendController,
     EmailAssignmentController,
     EmailUnsubscribeController,
+    MailingListsController,
     EmailsController,
   ],
   providers: [
     SyncHistoryService,
     EmailUnsubscribeService,
+    MailingListsService,
     EmailEmlDownloadService,
     CategoryDedupService,
     EmailBacklogService,

@@ -1,3 +1,5 @@
+import { stripTags } from "./html-strip.util";
+
 /**
  * Utility functions for extracting communication style from email threads.
  * Used to make follow-up emails sound more natural by matching the recipient's style.
@@ -14,9 +16,7 @@ const FIRST_LINES_TO_CHECK = 5;
  */
 function cleanEmailBody(emailBody: string): string {
   return (
-    emailBody
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]*>/g, " ")
+    stripTags(emailBody.replace(/<br\s*\/?>/gi, "\n"), " ")
       .replace(/&nbsp;/g, " ")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")

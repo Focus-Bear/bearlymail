@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 import { GITHUB_LINK_TYPES } from "../constants/domain-types";
+import { stripTags } from "../utils/html-strip.util";
 
 export interface ParsedGitHubLink {
   type: "issue" | "pr";
@@ -61,7 +62,7 @@ export class GitHubService {
       githubUrlPattern.lastIndex = 0;
 
       // Extract text content from HTML (for plain text links in HTML)
-      const textContent = htmlBody.replace(/<[^>]*>/g, " ");
+      const textContent = stripTags(htmlBody, " ");
       let match: RegExpExecArray | null;
       while ((match = githubUrlPattern.exec(textContent)) !== null) {
         const url = match[0].split("#")[0].split("?")[0];

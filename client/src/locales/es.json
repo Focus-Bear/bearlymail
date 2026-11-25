@@ -1843,7 +1843,7 @@
           },
           "section3": {
             "title": "¿Quieres volver a ver el recorrido?",
-            "content": "Ve a Ayuda y pulsa Repetir recorrido, o a Ajustes → Cuenta → Solución de problemas → Repetir tour."
+            "content": "Ve a Ayuda y pulsa Repetir recorrido, o a Ajustes → Cuenta → Avanzado → Resolución de problemas → Repetir tour."
           }
         }
       },
@@ -1989,7 +1989,7 @@
           },
           "section1": {
             "title": "Cambiar las horas de entrega",
-            "content": "Ve a Ajustes → Entrega de correo electrónico → Agrupación de correos electrónicos. Elige tu zona horaria, los Días de entrega y añade o quita Plazos de entrega. Dos o tres tandas al día funcionan bien para la mayoría de la gente."
+            "content": "Ve a Ajustes → Entrega de correo electrónico → Agrupación de correos electrónicos y elige Calma (dos veces al día de lunes a viernes), Equilibrado (cuatro veces al día de lunes a viernes) o Siempre activo (en cuanto llega). Para ponerlo a tu gusto, haz clic en Cambiar, elige los Días de entrega, añade o quita Plazos de entrega y selecciona tu zona horaria. Los cambios se guardan solos."
           },
           "section2": {
             "title": "Los urgentes llegan igualmente",
@@ -2067,9 +2067,10 @@
           "section0": {
             "title": "Entrega de correo electrónico",
             "item0": "Cuentas de Correo: conecta Gmail, Outlook / Office 365, Zoho o cualquier cuenta IMAP. Vuelve a conectar una cuenta aquí si deja de sincronizarse.",
-            "item1": "Agrupación de correos electrónicos: tus días y horas de entrega.",
-            "item2": "Remitentes bloqueados: desbloquea personas y bloquea palabras clave en el asunto.",
-            "item3": "Firma de Correo Electrónico y Seguimiento de aperturas."
+            "item1": "Agrupación de correos electrónicos: con qué frecuencia llega el correo (Calma, Equilibrado o Siempre activo), o tus propios días y horas.",
+            "item2": "Suscripciones: date de baja de varias listas de correo a la vez.",
+            "item3": "Remitentes bloqueados: desbloquea personas y bloquea palabras clave en el asunto.",
+            "item4": "Firma de Correo Electrónico y Seguimiento de aperturas."
           },
           "section1": {
             "title": "Guía nuestra IA",
@@ -2081,14 +2082,14 @@
           },
           "section2": {
             "title": "Programación",
-            "content": "Tu disponibilidad, el margen entre reuniones, el tiempo de trabajo profundo, la duración de los huecos, tu zona horaria y un enlace de reserva para que otras personas reserven tiempo contigo."
+            "content": "Tu disponibilidad, el margen entre reuniones, el tiempo de trabajo profundo y un enlace de reserva para que otras personas reserven tiempo contigo. La duración de los huecos y la zona horaria están en Avanzado."
           },
           "section3": {
             "title": "Integraciones y aplicaciones",
             "item0": "Aplicaciones conectadas: herramientas que la IA puede usar para el contexto del remitente, Preguntar a IA y los flujos de trabajo.",
             "item1": "Flujos de trabajo: cuando un correo cumple una condición, ejecuta una acción como archivar, responder automáticamente o llamar a un webhook.",
             "item2": "Conectar Claude: añade BearlyMail a Claude como conector, o crea un token de acceso para otra app de IA.",
-            "item3": "Usa tu propia cuenta de IA, la integración con GitHub y Focus Bear."
+            "item3": "Focus Bear y, en Avanzado: Usa tu propia cuenta de IA e Integración de GitHub."
           },
           "section4": {
             "title": "Equipo y plan",
@@ -2096,9 +2097,9 @@
           },
           "section5": {
             "title": "Cuenta",
-            "item0": "Inicio de sesión con contraseña y verificación en dos pasos.",
+            "item0": "Inicio de sesión con contraseña: crea o cambia tu contraseña. La autenticación de dos factores es solo para cuentas de administrador.",
             "item1": "Exportar e Importar Datos: haz una copia de tu configuración o exporta tus correos recientes.",
-            "item2": "Solución de problemas: Modo de resolución de problemas y Repetir tour.",
+            "item2": "Avanzado → Resolución de problemas: Modo de resolución de problemas y Repetir tour.",
             "item3": "Eliminar cuenta."
           }
         }
@@ -2192,7 +2193,7 @@
           "section3": {
             "title": "Otra cosa no funciona",
             "item0": "Recarga la página y luego cierra sesión y vuelve a entrar.",
-            "item1": "Activa el Modo de resolución de problemas en Ajustes → Cuenta → Solución de problemas. Muestra más detalles que nos ayudan a diagnosticar problemas.",
+            "item1": "Activa el Modo de resolución de problemas en Ajustes → Cuenta → Avanzado → Resolución de problemas. Muestra más detalles que nos ayudan a diagnosticar problemas.",
             "item2": "Repite el recorrido desde la página de Ayuda si has olvidado cómo funciona algo."
           },
           "section4": {
@@ -2217,7 +2218,7 @@
             "title": "Qué es privado",
             "item0": "Las notas privadas de una conversación solo las ves tú.",
             "item1": "Si el seguimiento de aperturas está activado, BearlyMail añade una imagen invisible a los correos que envías para saber cuándo se abren. Las respuestas automáticas nunca se rastrean. Desactívalo en Ajustes → Entrega de correo electrónico → Seguimiento de aperturas.",
-            "item2": "Puedes usar tu propia cuenta de IA (Ajustes → Integraciones y aplicaciones) si prefieres que las peticiones de IA se hagan con tu propia cuenta del proveedor."
+            "item2": "Puedes usar tu propia cuenta de IA (Ajustes → Integraciones y aplicaciones → Avanzado) si prefieres que las peticiones de IA se hagan con tu propia cuenta del proveedor."
           },
           "section3": {
             "title": "Exportar tus datos",
@@ -2449,7 +2450,7 @@
             "title": "Cámbiala en Ajustes",
             "item0": "Ve a Ajustes → Entrega de correo electrónico → Firma de Correo Electrónico.",
             "item1": "Escribe tu firma en el cuadro Firma.",
-            "item2": "Selecciona Guardar Firma."
+            "item2": "Se guarda sola. Busca Guardado ✓ junto al título."
           },
           "section1": {
             "title": "O cámbiala mientras escribes",
@@ -2710,6 +2711,14 @@
           "section2": {
             "title": "Archivar el resto",
             "content": "Después, BearlyMail te ofrece archivar este correo y los demás de ese remitente que sigan en Clasificación. Elige Archivar para quitarlos o Conservar para dejarlos. Si eliges Archivar, el remitente también se añade a Remitentes bloqueados, así que lo que siga enviando se archivará automáticamente. Para deshacerlo, desbloquéalo en Ajustes → Entrega de correo electrónico → Remitentes bloqueados."
+          },
+          "section3": {
+            "title": "Limpiar varias a la vez",
+            "content": "Suscripciones muestra las listas de correo que te escribieron en los últimos 90 días, empezando por las más activas.",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Suscripciones y haz clic en el título para abrir la lista.",
+            "item1": "Marca las que no quieras y haz clic en Cancelar suscripción y archivar.",
+            "item2": "Revisa lo que va a pasar y haz clic en Cancelar suscripción y archivar para confirmar.",
+            "item3": "Sus correos en Clasificación se archivan y los remitentes se añaden a Remitentes bloqueados. Algunas requieren que termines en su sitio web; al final recibes los enlaces."
           }
         }
       },
@@ -2726,7 +2735,7 @@
           },
           "section1": {
             "title": "Cuando BearlyMail te lo pregunta",
-            "content": "Si sigues usando Archivar todo en una categoría sin abrir nada, BearlyMail te pregunta «¿Archivar automáticamente {{category}}?». Elige Sí, archivar automáticamente o No, gracias."
+            "content": "Si sigues usando Archivar todo en una categoría sin abrir nada, BearlyMail te pregunta si quieres archivarla automáticamente. Elige Sí, archivar automáticamente o No, gracias."
           },
           "section2": {
             "title": "Reglas sugeridas",
@@ -3155,7 +3164,7 @@
           },
           "section1": {
             "title": "Añadir una clave",
-            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Usa tu propia cuenta de IA.",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Avanzado → Usa tu propia cuenta de IA.",
             "item1": "Haz clic en Usar mis propias claves.",
             "item2": "Pega una clave de OpenAI o de Anthropic (Claude). Haz clic en Obtener una clave si aún no tienes una.",
             "item3": "Haz clic en Guardar clave. BearlyMail comprueba la clave antes de guardarla."
@@ -3178,7 +3187,7 @@
         "content": {
           "section0": {
             "title": "Conectar GitHub",
-            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Integración de GitHub.",
+            "item0": "Ve a Ajustes → Integraciones y aplicaciones → Avanzado → Integración de GitHub.",
             "item1": "Haz clic en Conectar GitHub y aprueba el acceso en GitHub. No hace falta que crees un token.",
             "item2": "Los correos que mencionan GitHub también pueden mostrar Conectar GitHub o Conectar para ver estado CI."
           },
@@ -3234,8 +3243,8 @@
             "item0": "Horario de disponibilidad y Días disponibles: cuándo puede haber reuniones.",
             "item1": "Espacio entre reuniones: de 0 a 60 minutos de respiro entre una reunión y otra.",
             "item2": "Preservar trabajo profundo: de 0 a 4 horas al día sin reservas.",
-            "item3": "Duración del espacio de reunión: 15, 30, 45 o 60 minutos.",
-            "item4": "Zona horaria: la zona horaria de tu horario."
+            "item3": "Duración del espacio de reunión (en Avanzado): 15, 30, 45 o 60 minutos.",
+            "item4": "Zona horaria (en Avanzado): la zona horaria de tu horario."
           },
           "section1": {
             "title": "Comparte tu enlace de reserva",
@@ -3547,7 +3556,7 @@
           },
           "section3": {
             "title": "Activa el Modo de resolución de problemas",
-            "content": "Ve a Ajustes → Cuenta → Resolución de problemas y activa el Modo de resolución de problemas. Añade un botón 🐛 a tu bandeja que abre un panel con detalles de sincronización y entrega. Compártenos lo que muestra cuando nos informes de un problema."
+            "content": "Ve a Ajustes → Cuenta → Avanzado → Resolución de problemas y activa el Modo de resolución de problemas. Añade un botón 🐛 a tu bandeja que abre un panel con detalles de sincronización y entrega. Compártenos lo que muestra cuando nos informes de un problema."
           }
         }
       }
@@ -5558,8 +5567,6 @@
     "analyzing": "Analizando...",
     "batchHoursError": "No se pudieron actualizar las horas del lote",
     "batchHoursUpdated": "Horas de lote actualizadas exitosamente",
-    "batchScheduleError": "Error al actualizar el horario de lotes",
-    "batchScheduleUpdated": "Horario de lotes actualizado correctamente",
     "unsavedChanges": {
       "title": "Cambios sin guardar",
       "message": "Tienes cambios sin guardar en tu horario de entrega de correos. Si sales ahora, se perderán.",
@@ -5577,6 +5584,54 @@
       "reason": "Razón",
       "title": "Palabras clave bloqueadas",
       "unblock": "Desbloquear"
+    },
+    "subscriptions": {
+      "title": "Suscripciones",
+      "description": "Boletines y listas de correo que te escribieron en los últimos 90 días, los más activos primero. Marca los que no quieras: BearlyMail cancela tu suscripción, archiva sus correos en Triage y archiva automáticamente lo que sigan enviando.",
+      "loading": "Buscando tus suscripciones…",
+      "loadError": "No se pudieron cargar tus suscripciones.",
+      "retry": "Reintentar",
+      "emptyState": "No se encontraron listas de correo en los últimos 90 días.",
+      "newMailNote": "Un boletín aparece aquí cuando BearlyMail ve sus datos de cancelación en un correo sincronizado recientemente.",
+      "selectAll": "Seleccionar todo ({{count}})",
+      "stats_one": "{{count}} correo · unos {{perWeek}} por semana",
+      "stats_other": "{{count}} correos · unos {{perWeek}} por semana",
+      "inTriage": "{{count}} en Triage",
+      "method": {
+        "oneClick": "Un clic",
+        "mailto": "Por correo",
+        "link": "Sitio web"
+      },
+      "methodHint": {
+        "oneClick": "Cancela la suscripción al instante",
+        "mailto": "Envía un breve correo de cancelación desde tu cuenta",
+        "link": "Terminas de cancelar en su sitio web"
+      },
+      "cleanupButton": "Cancelar suscripción y archivar ({{count}})",
+      "progress": "Cancelando suscripciones… {{done}} de {{total}}",
+      "confirm": {
+        "title_one": "¿Cancelar la suscripción a 1 remitente?",
+        "title_other": "¿Cancelar la suscripción a {{count}} remitentes?",
+        "oneClick_one": "1 se cancela al instante.",
+        "oneClick_other": "{{count}} se cancelan al instante.",
+        "mailto_one": "1 recibe un breve correo de cancelación desde tu cuenta:",
+        "mailto_other": "{{count}} reciben un breve correo de cancelación desde tu cuenta:",
+        "link_one": "1 requiere que termines en su sitio web. Recibirás el enlace después.",
+        "link_other": "{{count}} requieren que termines en su sitio web. Recibirás los enlaces después.",
+        "archiveNote": "Sus correos en Triage se archivan y lo que envíen después se archiva automáticamente. Puedes deshacerlo en Remitentes bloqueados.",
+        "confirm": "Cancelar suscripción y archivar",
+        "cancel": "Cancelar"
+      },
+      "result": {
+        "unsubscribed_one": "Suscripción cancelada a 1 remitente.",
+        "unsubscribed_other": "Suscripción cancelada a {{count}} remitentes.",
+        "archived_one": "Se archivó 1 conversación.",
+        "archived_other": "Se archivaron {{count}} conversaciones.",
+        "finishOnWebsite": "Termina de cancelar en estos sitios web:",
+        "openPage": "Abrir la página de cancelación de {{sender}}",
+        "failed": "Estos no funcionaron del todo. Vuelve a intentarlo o usa Cancelar suscripción en uno de sus correos:",
+        "dismiss": "Listo"
+      }
     },
     "blockedSenders": {
       "blocked": "Bloqueado",
@@ -5644,7 +5699,6 @@
       "displayNamePlaceholder": "ej., Jeremy",
       "jobTitleLabel": "Título del puesto (proporciona contexto para la IA)",
       "jobTitlePlaceholder": "ej., Ingeniero de Software, Gerente de Producto",
-      "notSet": "No establecido",
       "calendarBookingUrlLabel": "URL de reserva de calendario (para respuestas de programación de IA)",
       "calendarBookingUrlPlaceholder": "ej., https://calendly.com/tunombre"
     },
@@ -5652,9 +5706,7 @@
       "title": "Firma de Correo Electrónico",
       "description": "Personaliza la firma que aparece al final de tus correos electrónicos.",
       "label": "Firma",
-      "placeholder": "Enviado desde BearlyMail (sistema anti abrumación de bandeja de entrada)",
-      "save": "Guardar Firma",
-      "saving": "Guardando..."
+      "placeholder": "Enviado desde BearlyMail (sistema anti abrumación de bandeja de entrada)"
     },
     "contextSections": {
       "notImportant": "Lo que no considero importante",
@@ -5937,7 +5989,35 @@
         "timeAria": "Hora",
         "meridiemAria": "a. m. o p. m."
       },
-      "timezone": "Zona horaria"
+      "timezone": "Zona horaria",
+      "change": "Cambiar",
+      "done": "Listo",
+      "summary": {
+        "alwaysOn": "El correo nuevo aparece en cuanto llega.",
+        "batched": "El correo no urgente llega a las {{times}} {{days}}.",
+        "everyDay": "todos los días",
+        "weekdays": "de lunes a viernes",
+        "weekends": "los fines de semana",
+        "someDays": "los días {{days}}",
+        "urgent": "El correo urgente sigue llegando al instante.",
+        "incomplete": "Elige al menos un día y una hora. Tu horario se guarda cuando tenga ambos.",
+        "and": "y"
+      },
+      "presets": {
+        "label": "¿Con qué frecuencia debe llegar el correo?",
+        "calm": {
+          "label": "Calma",
+          "hint": "Dos veces al día de lunes a viernes"
+        },
+        "balanced": {
+          "label": "Equilibrado",
+          "hint": "Cuatro veces al día de lunes a viernes"
+        },
+        "alwaysOn": {
+          "label": "Siempre activo",
+          "hint": "En cuanto llega"
+        }
+      }
     },
     "emailAccounts": {
       "connect": "Conectar cuenta",
@@ -5966,7 +6046,6 @@
       "title": "Cuentas de correo electrónico"
     },
     "emailBatching": {
-      "description": "Los correos no urgentes se agruparán y se entregarán en estos horarios programados. Los correos urgentes siempre llegan inmediatamente.",
       "title": "Agrupación de correos electrónicos"
     },
     "emailsFrom": "Correos electrónicos de {{value}}",
@@ -6049,43 +6128,12 @@
       "label": "Secciones de ajustes"
     },
     "nav": {
-      "accountSecurity": "Cuenta y seguridad",
-      "password": "Contraseña",
-      "twoFactorAuth": "Autenticación de dos factores",
-      "blockedSenders": "Remitentes bloqueados",
-      "emailBatching": "Agrupación de correos electrónicos",
       "emailDelivery": "Entrega de correo electrónico",
-      "emailCategories": "Categorías de Correo",
-      "emailSignature": "Firma de correo electrónico",
-      "emailAccounts": "Cuentas de Correo",
-      "githubIntegration": "Integración de GitHub",
-      "googleAccounts": "Cuentas de Google",
       "guideOurAI": "Guía nuestra IA",
       "integrations": "Integraciones",
       "integrationsApps": "Integraciones y aplicaciones",
-      "connectedApps": "Aplicaciones conectadas",
-      "workflows": "Flujos de trabajo",
-      "ownAiAccount": "Usa tu propia cuenta de IA",
-      "summarization": "Resumen",
-      "toneSettings": "Configuración de tono",
-      "autoResponder": "Respuesta automática",
       "schedulingPreferences": "Programación",
-      "schedulingAvailability": "Disponibilidad",
-      "schedulingMeetingGap": "Intervalo entre reuniones",
-      "schedulingDeepWork": "Trabajo profundo",
-      "schedulingSlotDuration": "Duración del turno",
-      "schedulingTimezone": "Zona horaria",
-      "schedulingBookingLink": "Enlace de reservas",
-      "teamPlan": "Equipo y plan",
-      "teamMembers": "Organización y miembros",
-      "teamUsage": "Uso y límites",
-      "teamPromo": "Código promocional",
-      "dataAccount": "Datos y cuenta",
-      "dataExport": "Exportar e importar",
-      "troubleshooting": "Solución de problemas",
-      "deleteAccount": "Eliminar cuenta",
-      "emailTracking": "Seguimiento de aperturas",
-      "focusBear": "Focus Bear"
+      "teamPlan": "Equipo y plan"
     },
     "schedulingPreferences": {
       "title": "Preferencias de programación",
@@ -6716,6 +6764,18 @@
           "description": "Jev toma las decisiones rápidas de sí/no y de categoría de BearlyMail. Si añades una clave de OpenAI o Anthropic pero no de Jev, esa cuenta tomará esas decisiones. Una clave de Jev por sí sola solo traslada a tu cuenta las decisiones de Jev."
         }
       }
+    },
+    "autosave": {
+      "saving": "Guardando…",
+      "saved": "Guardado ✓",
+      "error": "No se pudo guardar.",
+      "retry": "Reintentar"
+    },
+    "advanced": {
+      "title": "Avanzado",
+      "scheduling": "Duración de reuniones y zona horaria",
+      "integrations": "Tus propias claves de IA y GitHub",
+      "account": "Solución de problemas"
     }
   },
   "keyboard": {

@@ -86,6 +86,16 @@ describe('Help index', () => {
       expect(copy?.content).toBeDefined();
     });
   });
+
+  it.each(ALL_HELP_ARTICLE_IDS.filter(articleId => articleId !== HELP_ARTICLE_IDS.AUTORESPONDER))(
+    'shows no raw {{placeholder}} in the "%s" article (only the auto-responder documents real merge tags)',
+    articleId => {
+      const segment = toArticleKeySegment(articleId);
+      [en as LocaleTree, es as LocaleTree].forEach(locale => {
+        expect(JSON.stringify(articleCopy(locale, segment))).not.toContain('{{');
+      });
+    }
+  );
 });
 
 describe('Help search', () => {

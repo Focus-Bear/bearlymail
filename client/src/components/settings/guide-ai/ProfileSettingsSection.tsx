@@ -1,137 +1,59 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
-import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
-import { STRING_NONE } from 'constants/strings';
+import { SaveStatus } from 'components/settings/SaveStatus';
+import { useAutosave } from 'hooks/useAutosave';
 
-const SAVING_OPACITY = 0.7;
+interface ProfileFields {
+  displayName: string;
+  jobTitle: string;
+  calendarBookingUrl: string;
+}
 
 interface ProfileSettingsSectionProps {
   displayName?: string;
   jobTitle?: string;
   calendarBookingUrl?: string;
-  onUpdate: (updates: { displayName?: string; jobTitle?: string; calendarBookingUrl?: string }) => Promise<void>;
+  onUpdate: (updates: Partial<ProfileFields>) => Promise<void>;
 }
 
-interface ProfileSectionHeaderProps {
-  isEditing: boolean;
-  onEditClick: () => void;
-}
-
-const ProfileSectionHeader: React.FC<ProfileSectionHeaderProps> = ({ isEditing, onEditClick }) => {
-  const { t } = useTranslation();
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing.md,
-      }}
-    >
-      <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
-        {t('settings.profile.title')}
-      </h4>
-      {!isEditing && (
-        <button
-          onClick={onEditClick}
-          style={{
-            background: STRING_NONE,
-            border: STRING_NONE,
-            color: theme.colors.primary.main,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('common.edit')}
-        </button>
-      )}
-    </div>
-  );
-};
-
-interface ProfileFormActionsProps {
-  isSaving: boolean;
-  onSave: () => Promise<void>;
-  onCancel: () => void;
-}
-
-const ProfileFormActions: React.FC<ProfileFormActionsProps> = ({ isSaving, onSave, onCancel }) => {
-  const { t } = useTranslation();
-  return (
-    <div style={{ display: 'flex', gap: theme.spacing.sm, marginTop: theme.spacing.sm }}>
-      <button
-        onClick={onSave}
-        disabled={isSaving}
-        style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: theme.colors.primary.main,
-          color: COLOR_NAMED_WHITE,
-          border: STRING_NONE,
-          borderRadius: theme.borderRadius.md,
-          cursor: isSaving ? 'not-allowed' : 'pointer',
-          opacity: isSaving ? SAVING_OPACITY : 1,
-          ...theme.typography.body.medium,
-        }}
-      >
-        {isSaving ? t('common.saving') : t('common.save')}
-      </button>
-      <button
-        onClick={onCancel}
-        disabled={isSaving}
-        style={{
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          backgroundColor: COLOR_TRANSPARENT,
-          color: theme.colors.text.secondary,
-          border: `1px solid ${theme.colors.border.medium}`,
-          borderRadius: theme.borderRadius.md,
-          cursor: 'pointer',
-          ...theme.typography.body.medium,
-        }}
-      >
-        {t('common.cancel')}
-      </button>
-    </div>
-  );
-};
-
+/**
+ * Name, job title and booking link used in replies. The fields are always
+ * editable and save themselves a moment after the user stops typing (#482).
+ */
 export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
-  displayName: initialDisplayName,
-  jobTitle: initialJobTitle,
-  calendarBookingUrl: initialCalendarBookingUrl,
+  displayName: savedDisplayName,
+  jobTitle: savedJobTitle,
+  calendarBookingUrl: savedCalendarBookingUrl,
   onUpdate,
 }) => {
   const { t } = useTranslation();
-  const [displayName, setDisplayName] = useState(initialDisplayName || '');
-  const [jobTitle, setJobTitle] = useState(initialJobTitle || '');
-  const [calendarBookingUrl, setCalendarBookingUrl] = useState(initialCalendarBookingUrl || '');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [fields, setFields] = useState<ProfileFields>({
+    displayName: savedDisplayName || '',
+    jobTitle: savedJobTitle || '',
+    calendarBookingUrl: savedCalendarBookingUrl || '',
+  });
+  const hasEditedRef = useRef(false);
+  const autosave = useAutosave<ProfileFields>(onUpdate);
 
+  // Follow the loaded values until the user types: after that, each save
+  // echoes back through these props and must not overwrite newer typing.
   useEffect(() => {
-    setDisplayName(initialDisplayName || '');
-    setJobTitle(initialJobTitle || '');
-    setCalendarBookingUrl(initialCalendarBookingUrl || '');
-  }, [initialDisplayName, initialJobTitle, initialCalendarBookingUrl]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onUpdate({ displayName, jobTitle, calendarBookingUrl });
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to update profile:', error);
-    } finally {
-      setIsSaving(false);
+    if (!hasEditedRef.current) {
+      setFields({
+        displayName: savedDisplayName || '',
+        jobTitle: savedJobTitle || '',
+        calendarBookingUrl: savedCalendarBookingUrl || '',
+      });
     }
-  };
+  }, [savedDisplayName, savedJobTitle, savedCalendarBookingUrl]);
 
-  const handleCancel = () => {
-    setDisplayName(initialDisplayName || '');
-    setJobTitle(initialJobTitle || '');
-    setCalendarBookingUrl(initialCalendarBookingUrl || '');
-    setIsEditing(false);
+  const editField = (name: keyof ProfileFields, value: string) => {
+    hasEditedRef.current = true;
+    const next = { ...fields, [name]: value };
+    setFields(next);
+    autosave.saveSoon(next);
   };
 
   return (
@@ -143,7 +65,20 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
         borderRadius: theme.borderRadius.md,
       }}
     >
-      <ProfileSectionHeader isEditing={isEditing} onEditClick={() => setIsEditing(true)} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: theme.spacing.sm,
+          flexWrap: 'wrap',
+          marginBottom: theme.spacing.md,
+        }}
+      >
+        <h4 style={{ ...theme.typography.heading.h6, color: theme.colors.text.primary, margin: 0 }}>
+          {t('settings.profile.title')}
+        </h4>
+        <SaveStatus status={autosave.status} onRetry={autosave.retry} />
+      </div>
 
       <p
         style={{
@@ -159,27 +94,22 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
         <ProfileField
           label={t('settings.profile.displayNameLabel')}
-          value={displayName}
-          isEditing={isEditing}
+          value={fields.displayName}
           placeholder={t('settings.profile.displayNamePlaceholder')}
-          onChange={setDisplayName}
+          onChange={value => editField('displayName', value)}
         />
         <ProfileField
           label={t('settings.profile.jobTitleLabel')}
-          value={jobTitle}
-          isEditing={isEditing}
+          value={fields.jobTitle}
           placeholder={t('settings.profile.jobTitlePlaceholder')}
-          onChange={setJobTitle}
+          onChange={value => editField('jobTitle', value)}
         />
         <ProfileField
           label={t('settings.profile.calendarBookingUrlLabel')}
-          value={calendarBookingUrl}
-          isEditing={isEditing}
+          value={fields.calendarBookingUrl}
           placeholder={t('settings.profile.calendarBookingUrlPlaceholder')}
-          onChange={setCalendarBookingUrl}
+          onChange={value => editField('calendarBookingUrl', value)}
         />
-
-        {isEditing && <ProfileFormActions isSaving={isSaving} onSave={handleSave} onCancel={handleCancel} />}
       </div>
     </div>
   );
@@ -188,14 +118,14 @@ export const ProfileSettingsSection: React.FC<ProfileSettingsSectionProps> = ({
 const ProfileField: React.FC<{
   label: string;
   value: string;
-  isEditing: boolean;
   placeholder: string;
-  onChange: (v: string) => void;
-}> = ({ label, value, isEditing, placeholder, onChange }) => {
-  const { t } = useTranslation();
+  onChange: (value: string) => void;
+}> = ({ label, value, placeholder, onChange }) => {
+  const inputId = useId();
   return (
     <div>
       <label
+        htmlFor={inputId}
         style={{
           ...theme.typography.body.medium,
           color: theme.colors.text.secondary,
@@ -205,31 +135,20 @@ const ProfileField: React.FC<{
       >
         {label}
       </label>
-      {isEditing ? (
-        <input
-          type="text"
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          placeholder={placeholder}
-          style={{
-            width: '100%',
-            padding: theme.spacing.sm,
-            borderRadius: theme.borderRadius.sm,
-            border: `1px solid ${theme.colors.border.medium}`,
-            ...theme.typography.body.large,
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            ...theme.typography.body.large,
-            color: value ? theme.colors.text.primary : theme.colors.text.tertiary,
-            fontStyle: value ? 'normal' : 'italic',
-          }}
-        >
-          {value || t('settings.profile.notSet')}
-        </div>
-      )}
+      <input
+        id={inputId}
+        type="text"
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          padding: theme.spacing.sm,
+          borderRadius: theme.borderRadius.sm,
+          border: `1px solid ${theme.colors.border.medium}`,
+          ...theme.typography.body.large,
+        }}
+      />
     </div>
   );
 };

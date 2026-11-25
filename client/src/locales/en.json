@@ -1003,8 +1003,7 @@
     "show": "Show",
     "saved": "✓ Saved",
     "emailBatching": {
-      "title": "Email Batching",
-      "description": "Non-urgent emails will be batched and delivered at these scheduled times. Urgent emails always arrive immediately."
+      "title": "Email Batching"
     },
     "hideNonUrgent": "Hide non-urgent emails for (hours):",
     "summarizationRules": "Summarization Rules",
@@ -1030,8 +1029,6 @@
     "noContext": "No context learned yet. Click \"Analyze Emails\" to learn from your email history.",
     "source": "Source: {{source}}",
     "batchHoursUpdated": "Batch hours updated successfully",
-    "batchScheduleUpdated": "Batch schedule updated successfully",
-    "batchScheduleError": "Failed to update batch schedule",
     "unsavedChanges": {
       "title": "Unsaved changes",
       "message": "You have unsaved changes to your email delivery schedule. If you leave now, they will be lost.",
@@ -1340,7 +1337,6 @@
       "displayNamePlaceholder": "e.g., Jeremy",
       "jobTitleLabel": "Job Title (provides context for AI)",
       "jobTitlePlaceholder": "e.g., Software Engineer, Product Manager",
-      "notSet": "Not set",
       "calendarBookingUrlLabel": "Calendar Booking URL (for AI scheduling replies)",
       "calendarBookingUrlPlaceholder": "e.g., https://calendly.com/yourname"
     },
@@ -1348,52 +1344,19 @@
       "title": "Email Signature",
       "description": "Customize the signature that appears at the bottom of your emails.",
       "label": "Signature",
-      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)",
-      "save": "Save Signature",
-      "saving": "Saving..."
+      "placeholder": "Sent from BearlyMail (anti inbox overwhelm system)"
     },
     "tabs": {
       "account": "Account",
       "label": "Settings sections"
     },
     "nav": {
-      "accountSecurity": "Account & Security",
-      "password": "Password",
-      "twoFactorAuth": "Two-Factor Auth",
       "emailDelivery": "Email Delivery",
-      "emailAccounts": "Email Accounts",
-      "googleAccounts": "Google Accounts",
-      "emailBatching": "Email Batching",
-      "blockedSenders": "Blocked Senders",
-      "emailSignature": "Email Signature",
       "guideOurAI": "Guide Our AI",
-      "emailCategories": "Email Categories",
-      "toneSettings": "Tone Settings",
-      "summarization": "Summarization",
-      "autoResponder": "Auto-Responder",
       "integrations": "Integrations",
       "integrationsApps": "Integrations & Apps",
-      "connectedApps": "Connected Apps",
-      "workflows": "Workflows",
-      "ownAiAccount": "Use your own AI account",
-      "githubIntegration": "GitHub Integration",
       "schedulingPreferences": "Scheduling",
-      "schedulingAvailability": "Availability",
-      "schedulingMeetingGap": "Meeting Gap",
-      "schedulingDeepWork": "Deep Work",
-      "schedulingSlotDuration": "Slot Duration",
-      "schedulingTimezone": "Timezone",
-      "schedulingBookingLink": "Booking Link",
-      "teamPlan": "Team & Plan",
-      "teamMembers": "Organisation & Members",
-      "teamUsage": "Usage & Limits",
-      "teamPromo": "Promo Code",
-      "dataAccount": "Data & Account",
-      "dataExport": "Export & Import",
-      "troubleshooting": "Troubleshooting",
-      "deleteAccount": "Delete Account",
-      "emailTracking": "Open tracking",
-      "focusBear": "Focus Bear"
+      "teamPlan": "Team & Plan"
     },
     "schedulingPreferences": {
       "title": "Scheduling Preferences",
@@ -1655,6 +1618,34 @@
         "addTime": "Add Time",
         "timeAria": "Time",
         "meridiemAria": "AM or PM"
+      },
+      "change": "Change",
+      "done": "Done",
+      "summary": {
+        "alwaysOn": "New email shows up as soon as it arrives.",
+        "batched": "Non-urgent email arrives at {{times}} {{days}}.",
+        "everyDay": "every day",
+        "weekdays": "on weekdays",
+        "weekends": "on weekends",
+        "someDays": "on {{days}}",
+        "urgent": "Urgent email still comes straight away.",
+        "incomplete": "Pick at least one day and one time. Your schedule saves once it has both.",
+        "and": "and"
+      },
+      "presets": {
+        "label": "How often should email arrive?",
+        "calm": {
+          "label": "Calm",
+          "hint": "Twice a day on weekdays"
+        },
+        "balanced": {
+          "label": "Balanced",
+          "hint": "Four times a day on weekdays"
+        },
+        "alwaysOn": {
+          "label": "Always on",
+          "hint": "As soon as it arrives"
+        }
       }
     },
     "emailAccounts": {
@@ -1755,6 +1746,54 @@
         "certificate_mismatch": "That server name doesn't match the server's security certificate. Many web hosts want the hosting server's own name instead of mail.yourdomain. You'll find it in your hosting account's email settings.",
         "tls_failed": "We couldn't make a secure connection. Try switching the security setting between SSL/TLS and STARTTLS.",
         "unknown": "Something went wrong connecting to your email. Please try again."
+      }
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "description": "Newsletters and mailing lists that emailed you in the last 90 days, busiest first. Tick the ones you don't want: BearlyMail unsubscribes you, archives their emails in Triage, and auto-archives anything they still send.",
+      "loading": "Finding your subscriptions…",
+      "loadError": "Couldn't load your subscriptions.",
+      "retry": "Try again",
+      "emptyState": "No mailing lists found in the last 90 days.",
+      "newMailNote": "A newsletter shows up here once BearlyMail has seen its unsubscribe details on a newly synced email.",
+      "selectAll": "Select all ({{count}})",
+      "stats_one": "{{count}} email · about {{perWeek}} a week",
+      "stats_other": "{{count}} emails · about {{perWeek}} a week",
+      "inTriage": "{{count}} in Triage",
+      "method": {
+        "oneClick": "One-click",
+        "mailto": "By email",
+        "link": "Website"
+      },
+      "methodHint": {
+        "oneClick": "Unsubscribes instantly",
+        "mailto": "Sends a short unsubscribe email from your account",
+        "link": "You finish unsubscribing on their website"
+      },
+      "cleanupButton": "Unsubscribe & archive ({{count}})",
+      "progress": "Unsubscribing… {{done}} of {{total}}",
+      "confirm": {
+        "title_one": "Unsubscribe from 1 sender?",
+        "title_other": "Unsubscribe from {{count}} senders?",
+        "oneClick_one": "1 unsubscribes instantly.",
+        "oneClick_other": "{{count}} unsubscribe instantly.",
+        "mailto_one": "1 gets a short unsubscribe email from your account:",
+        "mailto_other": "{{count}} get a short unsubscribe email from your account:",
+        "link_one": "1 needs you to finish on their website. You'll get the link afterwards.",
+        "link_other": "{{count}} need you to finish on their website. You'll get the links afterwards.",
+        "archiveNote": "Their emails in Triage are archived, and anything they send later is archived automatically. You can undo that in Blocked senders.",
+        "confirm": "Unsubscribe & archive",
+        "cancel": "Cancel"
+      },
+      "result": {
+        "unsubscribed_one": "Unsubscribed from 1 sender.",
+        "unsubscribed_other": "Unsubscribed from {{count}} senders.",
+        "archived_one": "Archived 1 conversation.",
+        "archived_other": "Archived {{count}} conversations.",
+        "finishOnWebsite": "Finish unsubscribing on these websites:",
+        "openPage": "Open {{sender}}'s unsubscribe page",
+        "failed": "These didn't fully work. Try again, or use Unsubscribe on one of their emails:",
+        "dismiss": "Done"
       }
     },
     "blockedSenders": {
@@ -2200,6 +2239,18 @@
           "description": "Jev makes BearlyMail's quick yes/no and category decisions. If you add an OpenAI or Anthropic key but no Jev key, that account makes those decisions instead. A Jev key on its own moves only Jev's decisions to your account."
         }
       }
+    },
+    "autosave": {
+      "saving": "Saving…",
+      "saved": "Saved ✓",
+      "error": "Couldn't save.",
+      "retry": "Try again"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "scheduling": "Meeting length and time zone",
+      "integrations": "Your own AI keys and GitHub",
+      "account": "Troubleshooting"
     }
   },
   "oauthConsent": {
@@ -3085,7 +3136,7 @@
           },
           "section3": {
             "title": "Want the guided tour again?",
-            "content": "Go to Help and click Replay walkthrough, or Settings → Account → Troubleshooting → Replay tour."
+            "content": "Go to Help and click Replay walkthrough, or Settings → Account → Advanced → Troubleshooting → Replay tour."
           }
         }
       },
@@ -3231,7 +3282,7 @@
           },
           "section1": {
             "title": "Changing your delivery times",
-            "content": "Go to Settings → Email Delivery → Email Batching. Choose your timezone, the Delivery Days, and add or remove Delivery Times. Two or three batches a day works well for most people."
+            "content": "Go to Settings → Email Delivery → Email Batching and choose Calm (twice a day on weekdays), Balanced (four times a day on weekdays) or Always on (as soon as it arrives). To set your own, click Change, then pick the Delivery Days, add or remove Delivery Times and choose your timezone. Changes save by themselves."
           },
           "section2": {
             "title": "Urgent emails still get through",
@@ -3309,9 +3360,10 @@
           "section0": {
             "title": "Email Delivery",
             "item0": "Email Accounts: connect Gmail, Outlook / Office 365, Zoho or any IMAP account. Reconnect an account here if it stops syncing.",
-            "item1": "Email Batching: your delivery days and times.",
-            "item2": "Blocked Senders: unblock people, and block keywords in subject lines.",
-            "item3": "Email Signature and Open tracking."
+            "item1": "Email Batching: how often email arrives (Calm, Balanced or Always on), or your own days and times.",
+            "item2": "Subscriptions: unsubscribe from several mailing lists at once.",
+            "item3": "Blocked Senders: unblock people, and block keywords in subject lines.",
+            "item4": "Email Signature and Open tracking."
           },
           "section1": {
             "title": "Guide Our AI",
@@ -3323,14 +3375,14 @@
           },
           "section2": {
             "title": "Scheduling",
-            "content": "Your availability, meeting gaps, deep work time, slot length, timezone and a booking link people can use to book time with you."
+            "content": "Your availability, meeting gaps, deep work time and a booking link people can use to book time with you. Slot length and timezone are under Advanced."
           },
           "section3": {
             "title": "Integrations & Apps",
             "item0": "Connected Apps: tools the AI can use for sender context, Ask AI and workflows.",
             "item1": "Workflows: when an email matches a condition, run an action such as archive, auto-reply or a webhook.",
             "item2": "Connect Claude: add BearlyMail to Claude as a connector, or create an access token for another AI app.",
-            "item3": "Use your own AI account, GitHub integration and Focus Bear."
+            "item3": "Focus Bear, and under Advanced: Use your own AI account and GitHub Integration."
           },
           "section4": {
             "title": "Team & Plan",
@@ -3338,9 +3390,9 @@
           },
           "section5": {
             "title": "Account",
-            "item0": "Password login and two-factor authentication.",
+            "item0": "Password Login: set or change your password. Two-factor authentication is only for admin accounts.",
             "item1": "Export & Import Data: back up your settings or export your recent emails.",
-            "item2": "Troubleshooting: Troubleshooting Mode and Replay tour.",
+            "item2": "Advanced → Troubleshooting: Troubleshooting Mode and Replay tour.",
             "item3": "Delete Account."
           }
         }
@@ -3434,7 +3486,7 @@
           "section3": {
             "title": "Something else isn't working",
             "item0": "Reload the page, then sign out and back in.",
-            "item1": "Turn on Troubleshooting Mode in Settings → Account → Troubleshooting. It shows extra detail that helps us diagnose problems.",
+            "item1": "Turn on Troubleshooting Mode in Settings → Account → Advanced → Troubleshooting. It shows extra detail that helps us diagnose problems.",
             "item2": "Replay the walkthrough from the Help page if you've forgotten how something works."
           },
           "section4": {
@@ -3459,7 +3511,7 @@
             "title": "What's private",
             "item0": "Private notes on a thread are only visible to you.",
             "item1": "If open tracking is on, BearlyMail adds an invisible image to emails you send to see when they're opened. Automated replies are never tracked. Turn it off in Settings → Email Delivery → Open tracking.",
-            "item2": "You can use your own AI account (Settings → Integrations & Apps) if you'd rather AI requests run under your own provider account."
+            "item2": "You can use your own AI account (Settings → Integrations & Apps → Advanced) if you'd rather AI requests run under your own provider account."
           },
           "section3": {
             "title": "Exporting your data",
@@ -3691,7 +3743,7 @@
             "title": "Change it in Settings",
             "item0": "Go to Settings → Email Delivery → Email Signature.",
             "item1": "Type your signature in the Signature box.",
-            "item2": "Select Save Signature."
+            "item2": "It saves by itself. Look for Saved ✓ next to the heading."
           },
           "section1": {
             "title": "Or change it while writing",
@@ -3952,6 +4004,14 @@
           "section2": {
             "title": "Archive the rest",
             "content": "Afterwards, BearlyMail offers to archive this email, plus any other emails from that sender still in Triage. Choose Archive to clear them, or Keep to leave them. If you choose Archive, the sender is also added to Blocked Senders, so anything they still send is archived automatically. To undo that, unblock them in Settings → Email Delivery → Blocked Senders."
+          },
+          "section3": {
+            "title": "Clean up several at once",
+            "content": "Subscriptions lists the mailing lists that emailed you in the last 90 days, busiest first.",
+            "item0": "Go to Settings → Email Delivery → Subscriptions and click the heading to open the list.",
+            "item1": "Tick the ones you don't want and click Unsubscribe & archive.",
+            "item2": "Check what will happen, then click Unsubscribe & archive to confirm.",
+            "item3": "Their emails in Triage are archived, and the senders are added to Blocked Senders. Some need you to finish on their website; you get the links at the end."
           }
         }
       },
@@ -3968,7 +4028,7 @@
           },
           "section1": {
             "title": "When BearlyMail asks you",
-            "content": "If you keep using Archive All on a category without opening any of it, BearlyMail asks \"Auto-archive {{category}}?\". Choose Yes, auto-archive or No thanks."
+            "content": "If you keep using Archive All on a category without opening any of it, BearlyMail asks if you want to auto-archive that category. Choose Yes, auto-archive or No thanks."
           },
           "section2": {
             "title": "Suggested rules",
@@ -4397,7 +4457,7 @@
           },
           "section1": {
             "title": "Add a key",
-            "item0": "Go to Settings → Integrations & Apps → Use your own AI account.",
+            "item0": "Go to Settings → Integrations & Apps → Advanced → Use your own AI account.",
             "item1": "Click Use my own keys.",
             "item2": "Paste a key for OpenAI or Anthropic (Claude). Click Get a key if you don't have one yet.",
             "item3": "Click Save key. BearlyMail checks the key before saving it."
@@ -4420,7 +4480,7 @@
         "content": {
           "section0": {
             "title": "Connect GitHub",
-            "item0": "Go to Settings → Integrations & Apps → GitHub Integration.",
+            "item0": "Go to Settings → Integrations & Apps → Advanced → GitHub Integration.",
             "item1": "Click Connect GitHub and approve access on GitHub. You don't need to create a token yourself.",
             "item2": "Emails that mention GitHub may also offer Connect GitHub or Connect for CI status."
           },
@@ -4476,8 +4536,8 @@
             "item0": "Availability Hours and Available Days: when meetings can happen.",
             "item1": "Gap Between Meetings: 0 to 60 minutes of breathing room between meetings.",
             "item2": "Preserve Deep Work: 0 to 4 hours a day kept free of bookings.",
-            "item3": "Meeting Slot Duration: 15, 30, 45 or 60 minutes.",
-            "item4": "Timezone: the timezone your hours are in."
+            "item3": "Meeting Slot Duration (under Advanced): 15, 30, 45 or 60 minutes.",
+            "item4": "Timezone (under Advanced): the timezone your hours are in."
           },
           "section1": {
             "title": "Share your booking link",
@@ -4789,7 +4849,7 @@
           },
           "section3": {
             "title": "Turn on Troubleshooting Mode",
-            "content": "Go to Settings → Account → Troubleshooting and switch on Troubleshooting Mode. It adds a 🐛 button to your inbox that opens a debug panel with sync and delivery details. Share what it shows when you report a problem."
+            "content": "Go to Settings → Account → Advanced → Troubleshooting and switch on Troubleshooting Mode. It adds a 🐛 button to your inbox that opens a debug panel with sync and delivery details. Share what it shows when you report a problem."
           }
         }
       }

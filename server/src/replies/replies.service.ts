@@ -45,6 +45,10 @@ import {
 import { followUpDaysFromHours } from "../utils/expected-reply.util";
 import { computeEmailHmac, computeRecipientsHmac } from "../utils/hmac-email";
 import { logError } from "../utils/logger";
+import {
+  receivedEmailText,
+  toPlainTextBody,
+} from "../utils/plain-text-body.util";
 import { buildReplySubject } from "../utils/reply-subject.util";
 import { buildForwardBody, buildForwardHtmlBody } from "./forward-body.helpers";
 import {
@@ -518,9 +522,11 @@ ${closing}`;
    * quoted block with standard "> " indentation and an "On [date], [sender] wrote:" header.
    */
   private buildReplyQuotedBody(userText: string, originalEmail: Email): string {
-    const originalBody = originalEmail.body;
-    if (!originalBody) {
-      return userText;
+    // Both halves become plain text (#514); buildReplyQuotedHtmlBody carries
+    // the formatting.
+    const plainUserText = toPlainTextBody(userText);
+    if (!originalEmail.body) {
+      return plainUserText;
     }
 
     const fromDisplay = originalEmail.fromName
@@ -529,12 +535,12 @@ ${closing}`;
     const dateStr = originalEmail.receivedAt.toUTCString();
 
     const quotedHeader = `On ${dateStr}, ${fromDisplay} wrote:`;
-    const quotedBody = originalBody
+    const quotedBody = receivedEmailText(originalEmail)
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");
 
-    return `${userText}\n\n${quotedHeader}\n${quotedBody}`;
+    return `${plainUserText}\n\n${quotedHeader}\n${quotedBody}`;
   }
 
   /**

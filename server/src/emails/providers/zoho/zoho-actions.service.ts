@@ -1,4 +1,5 @@
 import { ERROR_MESSAGES } from "../../../constants/error-messages";
+import { sanitizeAxiosError } from "../../../utils/axios-error.utils";
 import {
   EmailAttachmentData,
   EmailRecipient,
@@ -17,6 +18,24 @@ import {
   unarchiveThreadInZoho,
 } from "./zoho-operations";
 
+/** Zoho message ids are numeric; locally generated placeholders are not. */
+const ZOHO_MESSAGE_ID = /^\d+$/;
+
+/** The newest message in the thread that Zoho can be asked to reply to. */
+async function findLatestZohoMessageId(
+  provider: ZohoProvider,
+  userId: string,
+  threadId: string,
+): Promise<string | undefined> {
+  const emails = await provider.emailsService.getThreadEmails(
+    userId,
+    threadId,
+    { order: "DESC" },
+  );
+  return emails.find((email) => ZOHO_MESSAGE_ID.test(email.messageId ?? ""))
+    ?.messageId;
+}
+
 export async function sendReply(
   provider: ZohoProvider,
   userId: string,
@@ -29,7 +48,7 @@ export async function sendReply(
   },
 ): Promise<{ messageId: string; threadId: string }> {
   const { threadId, to, subject, body, options } = params;
-  const { htmlBody, cc, bcc } = options ?? {};
+  const { htmlBody, cc, bcc, attachments } = options ?? {};
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -41,19 +60,26 @@ export async function sendReply(
   );
 
   try {
-    const { zohoAccountId } = await provider.client.getAccountId(
-      userId,
-      accessToken,
-      accountsServer,
+    const { zohoAccountId, mailboxAddress } =
+      await provider.client.getAccountId(userId, accessToken, accountsServer);
+    const result = await sendReplyViaZoho(
+      zohoClient,
+      zohoAccountId,
+      mailboxAddress,
+      {
+        to,
+        subject,
+        htmlBody: htmlBody || body,
+        replyToMessageId: await findLatestZohoMessageId(
+          provider,
+          userId,
+          threadId,
+        ),
+        cc,
+        bcc,
+        attachments,
+      },
     );
-    const result = await sendReplyViaZoho(zohoClient, zohoAccountId, {
-      to,
-      subject,
-      htmlBody: htmlBody || body,
-      threadId,
-      cc,
-      bcc,
-    });
     provider.logger.log(`Reply sent for user ${userId} to ${to}`);
     return { messageId: result.messageId, threadId };
   } catch (error: unknown) {
@@ -64,6 +90,9 @@ export async function sendReply(
       );
       return sendReply(provider, userId, params);
     }
+    provider.logger.error(
+      `[Zoho] sendReply failed for user ${userId}: ${sanitizeAxiosError(error)}`,
+    );
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_REPLY);
   }
 }
@@ -82,14 +111,6 @@ export async function sendEmail(
   },
 ): Promise<{ messageId: string; threadId: string }> {
   const { to, subject, body, htmlBody, cc, bcc, attachments } = params;
-  if (attachments && attachments.length > 0) {
-    // TODO: Zoho attachments require a separate upload step (POST the file to
-    // /messages/attachments, then reference the returned id on send). Not yet
-    // implemented — warn rather than silently dropping so the gap is visible.
-    provider.logger.warn(
-      `[Zoho] sendEmail received ${attachments.length} attachment(s) for user ${userId}, but Zoho attachment upload is not implemented — sending without them.`,
-    );
-  }
   const primaryAccount = await provider.zohoAccountsService.findPrimary(userId);
   if (!primaryAccount) throw new Error("Zoho Mail account not connected.");
 
@@ -111,6 +132,7 @@ export async function sendEmail(
       body: htmlBody ?? body,
       cc,
       bcc,
+      attachments,
     });
   } catch (error: unknown) {
     if (isAuthError(error)) {
@@ -120,6 +142,9 @@ export async function sendEmail(
       );
       return sendEmail(provider, userId, params);
     }
+    provider.logger.error(
+      `[Zoho] sendEmail failed for user ${userId}: ${sanitizeAxiosError(error)}`,
+    );
     throw new Error(ERROR_MESSAGES.FAILED_TO_SEND_EMAIL);
   }
 }

@@ -51,7 +51,9 @@ function capitalise(text: string): string {
  * piece becomes its own line; a model's prose reason stays one item.
  */
 export function splitPhishingReasons(reason: string | null | undefined): string[] {
-  if (!reason?.trim()) return [];
+  if (!reason?.trim()) {
+    return [];
+  }
   return reason
     .split(REASON_SEPARATOR)
     .map(part => part.trim().replace(TRAILING_PERIOD, ''))
@@ -61,7 +63,9 @@ export function splitPhishingReasons(reason: string | null | undefined): string[
 
 /** "SPF pass · DKIM pass · DMARC fail", or null when nothing was reported. */
 export function formatSenderAuthResults(results: SenderAuthResults | null | undefined): string | null {
-  if (!results) return null;
+  if (!results) {
+    return null;
+  }
   const parts = AUTH_METHODS.filter(method => results[method]).map(
     method => `${method.toUpperCase()} ${results[method]}`
   );
@@ -83,7 +87,9 @@ export function applySummaryPhishingSignal(
   email: Email | null,
   signal: SummaryPhishingSignal | null | undefined
 ): Email | null {
-  if (!email || signal === undefined) return email;
+  if (!email || signal === undefined) {
+    return email;
+  }
   return {
     ...email,
     phishingConfidence: signal?.confidence ?? null,

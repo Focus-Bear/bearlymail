@@ -23,10 +23,7 @@ import { getCurrentTimeInTimezone } from 'utils/timezoneUtils';
 import { buildToneCheckContext } from 'utils/toneCheckContext';
 
 import { isToneCheckBlocking } from 'components/email-detail-inline/toneCheckResult.helpers';
-import {
-  applySummaryPhishingSignal,
-  SummaryPhishingSignal,
-} from 'components/priority/tooltip/phishingVerdict.helpers';
+import { applySummaryPhishingSignal, SummaryPhishingSignal } from 'components/priority/tooltip/phishingVerdict.helpers';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { API_URL } from 'config/api';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';

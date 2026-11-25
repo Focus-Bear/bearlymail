@@ -52,7 +52,9 @@ export const PriorityTooltipContainer: React.FC<PriorityTooltipContainerProps> =
       tabIndex={-1}
       data-priority-tooltip={emailId}
       onKeyDown={event => {
-        if (event.key !== KEY_ESCAPE || !onClose) return;
+        if (event.key !== KEY_ESCAPE || !onClose) {
+          return;
+        }
         event.stopPropagation();
         onClose();
       }}

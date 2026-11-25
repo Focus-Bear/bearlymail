@@ -20,6 +20,7 @@ import { getJobPriority } from "../../queue/job-priorities";
 import { isApiError, isError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { sanitizeAxiosError } from "../../utils/axios-error.utils";
+import { getErrorMessage } from "../../utils/error-message.util";
 import { providerSyncCreateEmailOptions } from "../email-lifecycle.service";
 import { EmailsService } from "../emails.service";
 import {
@@ -60,7 +61,10 @@ import {
   MicrosoftGraphMessage,
   parseOffice365Message,
 } from "./office365/office365-message-parser";
-import { isAuthError } from "./office365/office365-operations";
+import {
+  isAuthError,
+  retryOnceAfterAuthRefresh,
+} from "./office365/office365-operations";
 import { getRawMessage as getRawMessageFromGraph } from "./office365/office365-raw-message";
 import {
   getExistingThreadUpdates,
@@ -559,7 +563,9 @@ export class Office365Provider implements EmailProvider {
       let currentUser: User | null = user;
       try {
         currentUser = await this.usersService.findOne(userId);
-      } catch {}
+      } catch (lookupError: unknown) {
+        this.logger.warn(`[handleSyncError] ${getErrorMessage(lookupError)}`);
+      }
 
       const isRecentLogin = isWithinGracePeriod(currentUser || user);
       await logAuthFailure(
@@ -586,7 +592,16 @@ export class Office365Provider implements EmailProvider {
     throw error;
   }
 
-  async processScanEmail(userId: string, messageId: string): Promise<void> {
+  /**
+   * Fetches one message for the history scan. On an auth error the token is
+   * refreshed and the message retried once; a second failure is logged and
+   * counted, so a revoked grant can never loop.
+   */
+  async processScanEmail(
+    userId: string,
+    messageId: string,
+    retryOnAuthError = true,
+  ): Promise<void> {
     const startTime = Date.now();
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
@@ -641,13 +656,16 @@ export class Office365Provider implements EmailProvider {
         `[processScanEmail] Completed email ${messageId} in ${Date.now() - startTime}ms`,
       );
     } catch (error: unknown) {
-      await this.updateScanProgress(userId);
-      if (isAuthError(error)) {
-        try {
-          await this.client.refreshTokenIfNeeded(userId, primaryAccount.id);
-          await this.processScanEmail(userId, messageId);
-        } catch {}
-      }
+      const retried = await retryOnceAfterAuthRefresh({
+        error,
+        allowRetry: retryOnAuthError,
+        refresh: () =>
+          this.client.refreshTokenIfNeeded(userId, primaryAccount.id),
+        retry: () => this.processScanEmail(userId, messageId, false),
+        logger: this.logger,
+        label: `[processScanEmail] ${messageId}`,
+      });
+      if (!retried) await this.updateScanProgress(userId);
     }
   }
 
@@ -671,12 +689,12 @@ export class Office365Provider implements EmailProvider {
     }
   }
 
-  async scanHistory(userId: string): Promise<void> {
+  async scanHistory(userId: string, retryOnAuthError = true): Promise<void> {
     const primaryAccount =
       await this.office365AccountsService.findPrimary(userId);
     if (!primaryAccount) return;
 
-    let { accessToken } = primaryAccount;
+    const { accessToken } = primaryAccount;
     const graphClient = this.client.createGraphClient(accessToken);
 
     try {
@@ -722,7 +740,11 @@ export class Office365Provider implements EmailProvider {
         if (!messages[i].id) continue;
         try {
           await this.processScanEmail(userId, messages[i].id);
-        } catch {}
+        } catch (scanError: unknown) {
+          this.logger.warn(
+            `[scanHistory] Message ${messages[i].id} failed: ${getErrorMessage(scanError)}`,
+          );
+        }
       }
 
       const finalProgress = await this.usersService.incrementScanProgress(
@@ -740,15 +762,17 @@ export class Office365Provider implements EmailProvider {
       }
       await this.usersService.update(userId, { hasScannedHistory: true });
     } catch (error: unknown) {
+      const retried = await retryOnceAfterAuthRefresh({
+        error,
+        allowRetry: retryOnAuthError,
+        refresh: () =>
+          this.client.refreshTokenIfNeeded(userId, primaryAccount.id),
+        retry: () => this.scanHistory(userId, false),
+        logger: this.logger,
+        label: "[scanHistory]",
+      });
+      if (retried) return;
       if (isAuthError(error)) {
-        try {
-          accessToken = await this.client.refreshTokenIfNeeded(
-            userId,
-            primaryAccount.id,
-          );
-          await this.scanHistory(userId);
-          return;
-        } catch {}
         throw new Error("Token refresh failed - please reconnect");
       }
       throw error;

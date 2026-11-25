@@ -56,11 +56,10 @@ const Help: React.FC = () => {
               {t('help.description')}
             </p>
 
-            <HelpFeedbackBanner />
-
-            <ReplayTourCard />
-
-            <HelpArticleBrowser />
+            <HelpArticleBrowser>
+              <HelpFeedbackBanner />
+              <ReplayTourCard />
+            </HelpArticleBrowser>
           </div>
         </div>
       </div>

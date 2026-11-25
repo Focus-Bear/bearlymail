@@ -990,7 +990,11 @@
     "focusBearDurationTooLong": "A task can be up to 24 hours.",
     "focusBearDurationMinutes": "{{minutes}} min",
     "focusBearDurationHours": "{{hours}} h",
-    "focusBearDurationHoursMinutes": "{{hours}} h {{minutes}} min"
+    "focusBearDurationHoursMinutes": "{{hours}} h {{minutes}} min",
+    "remoteImages": {
+      "blocked": "Images are hidden so senders can't tell when you open this email.",
+      "show": "Show images"
+    }
   },
   "settings": {
     "title": "Settings",

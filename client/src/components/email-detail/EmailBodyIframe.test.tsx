@@ -1,7 +1,7 @@
 import React from 'react';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 
-import { EmailBodyIframe, nextIframeHeight } from './EmailBodyIframe';
+import { EmailBodyIframe, hasRemoteContent, nextIframeHeight } from './EmailBodyIframe';
 
 const SRCDOC_URL = 'about:srcdoc';
 const MIN_HEIGHT = 320;
@@ -158,5 +158,58 @@ describe('nextIframeHeight', () => {
   it('shrinks when the content becomes clearly smaller, but never below the minimum', () => {
     expect(nextIframeHeight(500, 1010, MIN_HEIGHT)).toBe(510);
     expect(nextIframeHeight(50, 1010, MIN_HEIGHT)).toBe(MIN_HEIGHT);
+  });
+});
+
+describe('remote content blocking', () => {
+  const REMOTE_HTML = '<p>Hi</p><img src="https://tracker.example.com/open.gif?u=1" width="1" height="1">';
+
+  function srcDoc(container: HTMLElement): string {
+    return renderedIframe(container).getAttribute('srcdoc') ?? '';
+  }
+
+  it('blocks remote images by default and offers to show them', () => {
+    const { container, getByTestId } = render(<EmailBodyIframe html={REMOTE_HTML} />);
+
+    expect(getByTestId('remote-images-blocked')).toBeInTheDocument();
+    expect(srcDoc(container)).toContain('img-src data: blob:;');
+    expect(srcDoc(container)).not.toContain('img-src data: blob: https:');
+  });
+
+  it('loads remote images once the reader asks', () => {
+    const { container, getByRole, queryByTestId } = render(<EmailBodyIframe html={REMOTE_HTML} />);
+
+    fireEvent.click(getByRole('button'));
+
+    expect(queryByTestId('remote-images-blocked')).not.toBeInTheDocument();
+    expect(srcDoc(container)).toContain('img-src data: blob: https:');
+  });
+
+  it('starts blocked again for a different email', () => {
+    const { getByRole, getByTestId, rerender } = render(<EmailBodyIframe html={REMOTE_HTML} />);
+    fireEvent.click(getByRole('button'));
+
+    rerender(<EmailBodyIframe html={`${REMOTE_HTML}<p>another</p>`} />);
+
+    expect(getByTestId('remote-images-blocked')).toBeInTheDocument();
+  });
+
+  it('shows no banner when nothing remote would load', () => {
+    const { queryByTestId } = render(<EmailBodyIframe html='<p>Hi</p><img src="data:image/png;base64,AAAA">' />);
+
+    expect(queryByTestId('remote-images-blocked')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['an https image', '<img src="https://a.example/x.png">'],
+    ['a protocol-relative image', "<img src='//a.example/x.png'>"],
+    ['a CSS background url', '<td style="background-image: url(\'https://a.example/bg.png\')">'],
+    ['a legacy background attribute', '<td background="http://a.example/bg.png">'],
+  ])('detects %s as remote content', (_label, html) => {
+    expect(hasRemoteContent(html)).toBe(true);
+  });
+
+  it('ignores links, which only load on click', () => {
+    expect(hasRemoteContent('<a href="https://example.com">site</a>')).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
@@ -13,6 +14,25 @@ interface EmailBodyIframeProps {
 const SRCDOC_DOCUMENT_URL = 'about:srcdoc';
 const DOCUMENT_READY_STATE_LOADING: DocumentReadyState = 'loading';
 
+/**
+ * Content-Security-Policy for the email document. Scripts never run (the sandbox has no
+ * allow-scripts) and nothing but inline styles and embedded data is loaded until the reader asks:
+ * remote images, fonts and stylesheets are how senders track opens (time, IP, client).
+ */
+const BLOCKED_REMOTE_CSP =
+  "default-src 'none'; img-src data: blob:; media-src data: blob:; font-src data:; style-src 'unsafe-inline'";
+const ALLOWED_REMOTE_CSP =
+  "default-src 'none'; img-src data: blob: https: http:; media-src data: blob: https:; font-src data: https:; style-src 'unsafe-inline' https:";
+
+/** Matches a URL the browser would fetch: src/srcset/background attributes or CSS url(). */
+const REMOTE_RESOURCE_PATTERN =
+  /(?:\b(?:src|srcset|background)\s*=\s*["']?\s*(?:https?:)?\/\/)|(?:url\(\s*["']?\s*(?:https?:)?\/\/)/i;
+
+/** True when the email would load something from another server if allowed to. */
+export function hasRemoteContent(html: string): boolean {
+  return REMOTE_RESOURCE_PATTERN.test(html);
+}
+
 /** Extra space below the content so sub-pixel rounding never shows a scrollbar. */
 const HEIGHT_BUFFER_PX = 10;
 
@@ -21,11 +41,16 @@ const HEIGHT_BUFFER_PX = 10;
  * This prevents BearlyMail styles from affecting email rendering and vice versa.
  */
 export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeight = 100 }) => {
+  const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(minHeight);
   const [contentWidth, setContentWidth] = useState<number | null>(null);
+  // Remembers which body the reader allowed, so a different email starts blocked again.
+  const [remoteAllowedFor, setRemoteAllowedFor] = useState<string | null>(null);
 
-  const fullDocument = buildIframeDocument(html);
+  const allowRemote = remoteAllowedFor === html;
+  const showRemoteBanner = !allowRemote && hasRemoteContent(html);
+  const fullDocument = buildIframeDocument(html, allowRemote);
 
   // Resize iframe to match content dimensions (height and natural width)
   const measureContent = useCallback(
@@ -45,14 +70,49 @@ export const EmailBodyIframe: React.FC<EmailBodyIframeProps> = ({ html, minHeigh
       return undefined;
     }
     return watchEmailDocumentSize(iframe, measureContent);
-  }, [html, measureContent]);
+  }, [html, allowRemote, measureContent]);
 
   return (
     <div style={{ overflowX: 'auto', width: '100%' }}>
+      {showRemoteBanner && (
+        <div
+          role="status"
+          data-testid="remote-images-blocked"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '8px 12px',
+            marginBottom: 8,
+            borderRadius: 6,
+            fontSize: 14,
+            color: theme.colors.text.secondary,
+            background: theme.colors.greyscale.grey050,
+          }}
+        >
+          <span>{t('emailDetail.remoteImages.blocked')}</span>
+          <button
+            type="button"
+            onClick={() => setRemoteAllowedFor(html)}
+            style={{
+              flexShrink: 0,
+              border: 'none',
+              background: COLOR_TRANSPARENT,
+              color: theme.colors.primary.main,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {t('emailDetail.remoteImages.show')}
+          </button>
+        </div>
+      )}
       <iframe
-        // A fresh iframe per body, so the size watcher can never latch onto the previous
-        // body's document while the new srcdoc is still loading.
-        key={html}
+        // A fresh iframe per body (and per image choice), so the size watcher can never latch
+        // onto the previous document while the new srcdoc is still loading.
+        key={`${allowRemote}:${html}`}
         ref={iframeRef}
         srcDoc={fullDocument}
         title="Email content"
@@ -172,7 +232,7 @@ function stripRemainingCidImages(html: string): string {
   return html.replace(/<img[^>]*src=(["'])cid:[^"']*\1[^>]*>/gi, '');
 }
 
-function buildIframeDocument(html: string): string {
+function buildIframeDocument(html: string, allowRemote: boolean): string {
   const {
     colors: { text, primary, border, greyscale },
   } = theme;
@@ -198,5 +258,5 @@ function buildIframeDocument(html: string): string {
     h1, h2, h3, h4, h5, h6 { margin: 0 0 0.5em 0; line-height: 1.3; }
   </style>`;
   const safeHtml = stripRemainingCidImages(html);
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank">${baseStyles}</head><body>${safeHtml}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${allowRemote ? ALLOWED_REMOTE_CSP : BLOCKED_REMOTE_CSP}"><meta name="color-scheme" content="light"><meta name="viewport" content="width=device-width, initial-scale=1"><base target="_blank">${baseStyles}</head><body>${safeHtml}</body></html>`;
 }

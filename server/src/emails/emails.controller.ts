@@ -59,8 +59,8 @@ import { decryptEmailEntityForApi } from "../encryption/entity-api-decrypt.util"
 import { fetchUserEmailsJobKey } from "../queue/job-dedupe";
 import { getJobPriority } from "../queue/job-priorities";
 import { EmailProcessingConsentGuard } from "../users/email-processing-consent.guard";
-import { sanitizeLogInput } from "../utils/sanitize-log";
 import { EmailAdminService } from "./email-admin.service";
+import { prepareEmailForClient } from "./email-client-view";
 import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
@@ -83,7 +83,6 @@ import { EmailsService } from "./emails.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { ReadStatusSyncService } from "./read-status-sync.service";
 import { SearchEnrichmentService } from "./search-enrichment.service";
-import { unsubscribeMethodFromStored } from "./unsubscribe/list-unsubscribe.parser";
 
 /**
  * Bulk export is a privileged personal-data access path: it reads the user's
@@ -688,20 +687,9 @@ export class EmailsController {
         req.user.userId,
         threadEmails,
       );
-    // Defence-in-depth: normalise attachments to null if not an array (see #1589)
-    return annotatedEmails.map((threadEmail) => {
-      if (
-        threadEmail.attachments !== null &&
-        threadEmail.attachments !== undefined &&
-        !Array.isArray(threadEmail.attachments)
-      ) {
-        console.warn(
-          `[getThread] email ${threadEmail.id} has non-array attachments (type=${typeof threadEmail.attachments}). Normalising to null.`,
-        );
-        return { ...threadEmail, attachments: null };
-      }
-      return threadEmail;
-    });
+    return annotatedEmails.map((threadEmail) =>
+      prepareEmailForClient({ ...threadEmail }),
+    );
   }
 
   @Get(":id")
@@ -711,28 +699,7 @@ export class EmailsController {
     // Showing the user their own sent message must never count as an open.
     email.body = stripTrackingPixels(email.body);
     email.htmlBody = stripTrackingPixels(email.htmlBody);
-    // The client only needs to know how it can unsubscribe; the URLs (with
-    // their per-recipient tokens) stay on the server, which performs the action.
-    const unsubscribeMethod = unsubscribeMethodFromStored(
-      email.unsubscribeOptions,
-    );
-    email.unsubscribeOptions = null;
-    Object.assign(email, { unsubscribeMethod });
-
-    // Defence-in-depth: ensure attachments is always null or an Array.
-    // encryptedJsonTransformer returns `unknown` at runtime; if bad data is stored
-    // (e.g. a plain object instead of an array), normalise to null here so clients
-    // never receive a non-array value that would cause `?.some is not a function`.
-    if (
-      email.attachments !== null &&
-      email.attachments !== undefined &&
-      !Array.isArray(email.attachments)
-    ) {
-      console.warn(
-        `[getEmail] email ${sanitizeLogInput(id)} has non-array attachments (type=${typeof email.attachments}). Normalising to null.`,
-      );
-      (email as unknown as Record<string, unknown>).attachments = null;
-    }
+    prepareEmailForClient(email);
 
     if (email.emailThreadId) {
       const thread = await this.emailAdminService.getEmailThreadById(

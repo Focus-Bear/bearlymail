@@ -4,6 +4,7 @@ import { AxiosInstance } from "axios";
 import { HTTP_STATUS } from "../../../constants/http-status";
 import { QUERY_LIMITS } from "../../../constants/query-limits";
 import { isApiError } from "../../../types/common";
+import { getErrorMessage } from "../../../utils/error-message.util";
 import { EmailAttachmentData } from "../../interfaces/email-provider.interface";
 import {
   excludeOffice365Drafts,
@@ -377,4 +378,35 @@ export function isAuthError(error: unknown): boolean {
     (apiError?.response &&
       apiError.response.status === HTTP_STATUS.UNAUTHORIZED)
   );
+}
+
+/**
+ * Handles a failed Graph call that may be an expired token: refreshes it and
+ * runs `retry` once. `allowRetry` is false on the retry itself, so a revoked
+ * grant that keeps returning 401 ends after one attempt instead of recursing.
+ * Returns true when the retry ran; otherwise logs the failure and returns false.
+ */
+export async function retryOnceAfterAuthRefresh(options: {
+  error: unknown;
+  allowRetry: boolean;
+  refresh: () => Promise<unknown>;
+  retry: () => Promise<void>;
+  logger: Pick<Logger, "warn">;
+  label: string;
+}): Promise<boolean> {
+  const { error, allowRetry, refresh, retry, logger, label } = options;
+  if (!allowRetry || !isAuthError(error)) {
+    logger.warn(`${label} failed: ${getErrorMessage(error)}`);
+    return false;
+  }
+  try {
+    await refresh();
+  } catch (refreshError: unknown) {
+    logger.warn(
+      `${label} token refresh failed: ${getErrorMessage(refreshError)}`,
+    );
+    return false;
+  }
+  await retry();
+  return true;
 }

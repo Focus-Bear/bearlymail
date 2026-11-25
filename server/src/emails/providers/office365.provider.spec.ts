@@ -158,6 +158,24 @@ describe("Office365Provider", () => {
         "msg-123",
       );
     });
+    it("retries once after an auth error, then gives up instead of looping", async () => {
+      office365AccountsService.findPrimary.mockResolvedValue(mockAccount);
+      scanEmailService.findByMessageId.mockResolvedValue(null);
+      const unauthorized = { code: 401, message: "Unauthorized" };
+      const get = jest.fn().mockRejectedValue(unauthorized);
+      jest
+        .spyOn(provider.client, "createGraphClient")
+        .mockReturnValue(mockPartial({ get }));
+      const refresh = jest
+        .spyOn(provider.client, "refreshTokenIfNeeded")
+        .mockResolvedValue("new-token");
+
+      await provider.processScanEmail("user-123", "msg-123");
+
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(scanEmailService.createScanEmail).not.toHaveBeenCalled();
+    });
   });
 
   describe("syncEmails", () => {

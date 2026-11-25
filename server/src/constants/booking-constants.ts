@@ -16,3 +16,17 @@ export const PUBLIC_BOOKING_THROTTLE = {
     ttl: BOOKING_WINDOW_MINUTES * MS_PER_MINUTE,
   },
 } as const;
+
+const SLOT_READS_PER_WINDOW = 60;
+
+/**
+ * Per-IP limit on the unauthenticated slots endpoint. Every read hits the
+ * host's calendar API, so it is capped too, more loosely than writes because
+ * a visitor pages through "load more".
+ */
+export const PUBLIC_SLOTS_THROTTLE = {
+  default: {
+    limit: SLOT_READS_PER_WINDOW,
+    ttl: BOOKING_WINDOW_MINUTES * MS_PER_MINUTE,
+  },
+} as const;

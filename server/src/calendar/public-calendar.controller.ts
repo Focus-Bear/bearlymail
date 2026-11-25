@@ -15,10 +15,16 @@ import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt-auth.guard";
-import { PUBLIC_BOOKING_THROTTLE } from "../constants/booking-constants";
+import {
+  PUBLIC_BOOKING_THROTTLE,
+  PUBLIC_SLOTS_THROTTLE,
+} from "../constants/booking-constants";
 import { DAYS } from "../constants/time-constants";
 import { CalendarService } from "./calendar.service";
-import { parsePublicBookingRequest } from "./public-booking-request";
+import {
+  parsePublicBookingRequest,
+  parsePublicSlotsQuery,
+} from "./public-booking-request";
 
 interface PublicCalendarRequest extends Request {
   user?: { userId: string; email?: string };
@@ -79,30 +85,29 @@ export class PublicCalendarController {
   }
 
   @Get(":userId/slots")
+  @Throttle(PUBLIC_SLOTS_THROTTLE)
   @UseGuards(OptionalJwtAuthGuard)
   async getPublicSlots(
     @Param("userId") userId: string,
     @Req() req: PublicCalendarRequest,
   ) {
-    const { daysAhead, offset, limit, afterDate } = req.query as Record<
-      string,
-      string | undefined
-    >;
-    // Search a 14-day window from afterDate (or now). A 14-day window is enough
-    // to find 8 slots for most users without over-fetching calendar data.
-    const days = daysAhead ? parseInt(daysAhead, 10) : DAYS.WEEK * 2;
-    const slotOffset = offset ? parseInt(offset, 10) : 0;
-    const slotLimit = limit
-      ? Math.min(parseInt(limit, 10), MAX_SLOTS_LIMIT)
-      : DEFAULT_SLOTS_LIMIT;
-    const afterDateParsed = afterDate ? new Date(afterDate) : undefined;
+    const { daysAhead, offset, limit, afterDate } = parsePublicSlotsQuery(
+      req.query as Record<string, unknown>,
+      {
+        // A 14-day window is enough to find 8 slots for most users without
+        // over-fetching calendar data.
+        daysAhead: DAYS.WEEK * 2,
+        limit: DEFAULT_SLOTS_LIMIT,
+        maxLimit: MAX_SLOTS_LIMIT,
+      },
+    );
     try {
       return await this.calendarService.getAvailableSlotsWithTimezone(
         userId,
-        days,
-        slotOffset,
-        slotLimit,
-        afterDateParsed,
+        daysAhead,
+        offset,
+        limit,
+        afterDate,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

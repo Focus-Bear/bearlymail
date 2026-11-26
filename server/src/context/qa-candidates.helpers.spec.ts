@@ -1,5 +1,8 @@
 import { QA_EXTRACTION } from "../constants/llm-constants";
-import type { ExtractedQaCluster } from "../llm/qa-extraction-response";
+import {
+  type ExtractedQaCluster,
+  QA_ANSWER_KINDS,
+} from "../llm/qa-extraction-response";
 import {
   buildFixtureInboundMessages,
   buildFixtureSentReplies,
@@ -11,8 +14,10 @@ import {
   buildQaCandidatePairs,
   countDistinctAskers,
   formatQaPairsForPrompt,
+  isAgentInstruction,
   isAnswerGroundedInReplies,
   isMachineMail,
+  isThreadPointerQuestion,
   looksLikeQuestion,
   type QaCandidatePair,
   verifyQaClusters,
@@ -268,6 +273,50 @@ describe("isAnswerGroundedInReplies", () => {
   });
 });
 
+describe("isThreadPointerQuestion", () => {
+  it.each([
+    "Any updates on this?",
+    "Can you follow up on this?",
+    "Could you help me with that?",
+    "Any news about these?",
+  ])("flags %p", (question) => {
+    expect(isThreadPointerQuestion(question)).toBe(true);
+  });
+
+  it.each([
+    "Are you open on weekends?",
+    "Do you groom cats, and how long does it take?",
+    "Is there a discount for this year's members?",
+    "What's included in a full groom?",
+  ])("keeps %p", (question) => {
+    expect(isThreadPointerQuestion(question)).toBe(false);
+  });
+});
+
+describe("isAgentInstruction", () => {
+  it.each([
+    "Instruct the user to open the dashboard and click Accept Invite.",
+    "Direct the team to handle the evaluation or complete it via the link.",
+    "Reiterate the importance of the request and suggest a brief call.",
+    "Apologize for the delay and offer a refund.",
+    "Tell the sender we are closed on Sundays.",
+    "Thank the asker and share the price list.",
+  ])("flags %p", (answer) => {
+    expect(isAgentInstruction(answer)).toBe(true);
+  });
+
+  it.each([
+    "Yes, we're open Saturdays 9am to 3pm.",
+    "Go to the login page, click Forgot password and follow the link we email you.",
+    "Provide your order number when you book and we'll apply the discount.",
+    "Direct debit is available on all monthly plans.",
+    "Send an invite from Settings, then ask the user to accept it from their inbox.",
+    "Sorry, we don't groom cats.",
+  ])("keeps %p", (answer) => {
+    expect(isAgentInstruction(answer)).toBe(false);
+  });
+});
+
 describe("verifyQaClusters", () => {
   const pairs = buildPairs();
   const weekendIds = pairIdsFor(pairs, ["Saturday grooming?", "Weekend hours"]);
@@ -277,6 +326,7 @@ describe("verifyQaClusters", () => {
     answer:
       "Yes, we're open Saturdays 9am to 3pm. You can book online at https://sunnypaws.example/book.",
     pairIds: weekendIds,
+    answerKind: QA_ANSWER_KINDS.REUSABLE,
     confidence: 0.92,
   };
 
@@ -295,6 +345,7 @@ describe("verifyQaClusters", () => {
       question: "Is there parking nearby?",
       answer: "Yes, there's free two-hour parking out front on Elm Street.",
       pairIds: parkingIds,
+      answerKind: QA_ANSWER_KINDS.REUSABLE,
       confidence: 0.95,
     };
 
@@ -323,6 +374,31 @@ describe("verifyQaClusters", () => {
     };
 
     expect(verifyQaClusters([invented], pairs)).toEqual([]);
+  });
+
+  it.each([
+    QA_ANSWER_KINDS.THREAD_DEPENDENT,
+    QA_ANSWER_KINDS.CASE_SPECIFIC,
+    QA_ANSWER_KINDS.DESCRIBES_ACTION,
+  ])("drops a cluster the model judged %s", (answerKind) => {
+    expect(verifyQaClusters([{ ...weekendFaq, answerKind }], pairs)).toEqual(
+      [],
+    );
+  });
+
+  it("drops a question that points back into its thread, whatever the model said", () => {
+    const nudge = { ...weekendFaq, question: "Any updates on this?" };
+
+    expect(verifyQaClusters([nudge], pairs)).toEqual([]);
+  });
+
+  it("drops an answer written as an instruction to an agent, whatever the model said", () => {
+    const instruction = {
+      ...weekendFaq,
+      answer: "Instruct the user to book a Saturday slot online.",
+    };
+
+    expect(verifyQaClusters([instruction], pairs)).toEqual([]);
   });
 
   it.each([

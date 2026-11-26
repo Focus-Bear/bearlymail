@@ -9,7 +9,10 @@ import {
   UserContext,
 } from "../database/entities/user-context.entity";
 import { LLMService } from "../llm/llm.service";
-import type { ExtractedQaCluster } from "../llm/qa-extraction-response";
+import {
+  type ExtractedQaCluster,
+  QA_ANSWER_KINDS,
+} from "../llm/qa-extraction-response";
 import { mockPartial } from "../test/helpers/mock-utils";
 import {
   buildFixtureInboundMessages,
@@ -85,6 +88,7 @@ function weekendCluster(idOf: (subject: string) => number): ExtractedQaCluster {
     question: WEEKEND_QUESTION,
     answer: WEEKEND_ANSWER,
     pairIds: [idOf("Saturday grooming?"), idOf("Weekend hours")],
+    answerKind: QA_ANSWER_KINDS.REUSABLE,
     confidence: 0.93,
   };
 }
@@ -165,12 +169,14 @@ describe("ContextQaExtractionService", () => {
         question: "Is there parking nearby?",
         answer: "Yes, there's free two-hour parking out front on Elm Street.",
         pairIds: [idOf("Parking"), idOf("Parking again")],
+        answerKind: QA_ANSWER_KINDS.REUSABLE,
         confidence: 0.95,
       },
       {
         question: "How much is a full groom for a large dog?",
         answer: "A full groom for a large dog is $95.",
         pairIds: [idOf("Price for a big dog")],
+        answerKind: QA_ANSWER_KINDS.REUSABLE,
         confidence: 0.9,
       },
       {
@@ -178,6 +184,36 @@ describe("ContextQaExtractionService", () => {
         answer: "Yes, every Saturday and Sunday from 8am to 5pm.",
       },
     ]);
+
+    await run();
+
+    expect(mockContextRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("does not save a nudge, a one-off case or a note about what to reply, even when two people asked", async () => {
+    respondWith((idOf) => {
+      const askedByTwo = [idOf("Saturday grooming?"), idOf("Weekend hours")];
+      return [
+        {
+          question: "Any updates on this?",
+          answer: "I'm still waiting on the supplier and will be in touch.",
+          pairIds: askedByTwo,
+          answerKind: QA_ANSWER_KINDS.REUSABLE,
+          confidence: 0.9,
+        },
+        {
+          question: "What is the status of my booking?",
+          answer: "Your booking is confirmed.",
+          pairIds: askedByTwo,
+          answerKind: QA_ANSWER_KINDS.CASE_SPECIFIC,
+          confidence: 0.9,
+        },
+        {
+          ...weekendCluster(idOf),
+          answer: "Instruct the user to book a Saturday slot online.",
+        },
+      ];
+    });
 
     await run();
 

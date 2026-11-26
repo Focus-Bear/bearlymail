@@ -1,3 +1,4 @@
+import { CATEGORY_RULE_COMPOSITE } from "../constants/category-rule-composite.constants";
 import {
   CompositeCategoryRuleSpecV1,
   CompositeCategoryRuleSpecV2,
@@ -8,6 +9,7 @@ import {
   compositeRulesShouldReconcile,
   copyV3ExtraFields,
   evaluateComposite,
+  reconcileCompositeSpecs,
   senderMatchesPattern,
 } from "./category-rules-auto-composite.helper";
 
@@ -275,6 +277,32 @@ describe("compositeAutoSpecsMatch", () => {
     };
     expect(compositeAutoSpecsMatch(left, right)).toBe(false);
   });
+
+  it("ignores case, whitespace, ordering and repeats when comparing conditions", () => {
+    const left: CompositeCategoryRuleSpecV3 = {
+      v: 3,
+      fromMatchesAny: ["notifications@github.com"],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      bodyNotContainsAny: [
+        "Test Environment",
+        "Test Objective",
+        "Preconditions",
+      ],
+      notificationSubtype: "github:issue:closed:human",
+    };
+    const right: CompositeCategoryRuleSpecV3 = {
+      ...left,
+      fromMatchesAny: [" Notifications@GitHub.com "],
+      bodyNotContainsAny: [
+        "preconditions",
+        "TEST OBJECTIVE",
+        "Test Environment ",
+        "test environment",
+      ],
+    };
+    expect(compositeAutoSpecsMatch(left, right)).toBe(true);
+  });
 });
 
 describe("senderMatchesPattern", () => {
@@ -378,7 +406,7 @@ describe("notificationSubtype set matching and coarse compatibility", () => {
     ).toBe(false);
   });
 
-  it("treats identical phrase-free rules with different subtype pins as DIFFERENT rules (no dedup)", () => {
+  it("never treats rules with different subtype pins as exact duplicates", () => {
     const mergedOnly: CompositeCategoryRuleSpecV3 = {
       ...legacyCoarsePr,
       notificationSubtype: "github:pr:merged:human",
@@ -387,17 +415,126 @@ describe("notificationSubtype set matching and coarse compatibility", () => {
     expect(compositeAutoSpecsMatch(humanPrUpdates, { ...humanPrUpdates })).toBe(
       true,
     );
-    expect(compositeRulesShouldReconcile(legacyCoarsePr, mergedOnly)).toBe(
-      false,
-    );
     expect(
       compositeRulesShouldReconcile(humanPrUpdates, { ...humanPrUpdates }),
     ).toBe(true);
+  });
+
+  it("reconciles same-phrase rules whose pins differ, so the set grows on one rule", () => {
+    const candidate: CompositeCategoryRuleSpecV3 = {
+      ...humanPrUpdates,
+      notificationSubtypeAny: [
+        "github:pr:push:human",
+        "github:pr:reopened:human",
+      ],
+    };
+    expect(compositeRulesShouldReconcile(humanPrUpdates, candidate)).toBe(true);
+  });
+
+  it("reconciles a fine pin into a coarse same-phrase rule that already covers it", () => {
+    const mergedOnly: CompositeCategoryRuleSpecV3 = {
+      ...legacyCoarsePr,
+      notificationSubtype: "github:pr:merged:human",
+    };
+    expect(compositeRulesShouldReconcile(legacyCoarsePr, mergedOnly)).toBe(
+      true,
+    );
+  });
+
+  it("does not widen a fine-pinned rule with a shallower pin (it would lose specificity)", () => {
+    expect(compositeRulesShouldReconcile(humanPrUpdates, legacyCoarsePr)).toBe(
+      false,
+    );
+  });
+
+  it("does not reconcile different pins when the phrases differ too", () => {
+    const issueRule: CompositeCategoryRuleSpecV3 = {
+      ...humanPrUpdates,
+      subjectContainsAny: ["Issue #"],
+      notificationSubtype: "github:issue:closed:human",
+      notificationSubtypeAny: undefined,
+    };
+    expect(compositeRulesShouldReconcile(humanPrUpdates, issueRule)).toBe(
+      false,
+    );
+  });
+
+  it("does not add a pin to an unpinned rule (that would narrow it)", () => {
+    const unpinned: CompositeCategoryRuleSpecV3 = {
+      ...legacyCoarsePr,
+      notificationSubtype: undefined,
+    };
+    expect(compositeRulesShouldReconcile(unpinned, humanPrUpdates)).toBe(false);
   });
 
   it("preserves the set through copyV3ExtraFields", () => {
     expect(copyV3ExtraFields(humanPrUpdates)).toEqual({
       notificationSubtypeAny: humanPrUpdates.notificationSubtypeAny,
     });
+  });
+});
+
+describe("reconcileCompositeSpecs sub-stream union", () => {
+  const issueQaGuard = ["Test Environment", "Test Objective", "Preconditions"];
+  const closedRule: CompositeCategoryRuleSpecV3 = {
+    v: 3,
+    fromMatchesAny: ["notifications@github.com"],
+    subjectContainsAny: [],
+    bodyContainsAny: [],
+    bodyNotContainsAny: issueQaGuard,
+    notificationSubtype: "github:issue:closed:human",
+  };
+
+  it("unions the candidate's new sub-streams into the existing rule", () => {
+    const candidate: CompositeCategoryRuleSpecV3 = {
+      ...closedRule,
+      notificationSubtype: undefined,
+      notificationSubtypeAny: [
+        "github:issue:closed:human",
+        "github:issue:reopened:human",
+      ],
+    };
+    const merged = reconcileCompositeSpecs(closedRule, candidate);
+    expect(merged).toEqual({
+      v: 3,
+      fromMatchesAny: ["notifications@github.com"],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      bodyNotContainsAny: issueQaGuard,
+      notificationSubtypeAny: [
+        "github:issue:closed:human",
+        "github:issue:reopened:human",
+      ],
+    });
+  });
+
+  it("returns the existing spec unchanged when its pins already cover the candidate", () => {
+    const narrower: CompositeCategoryRuleSpecV3 = {
+      ...closedRule,
+      bodyNotContainsAny: ["preconditions"],
+    };
+    const coarse: CompositeCategoryRuleSpecV3 = {
+      ...closedRule,
+      notificationSubtype: "github:issue:closed",
+    };
+    expect(reconcileCompositeSpecs(coarse, narrower)).toBe(coarse);
+  });
+
+  it("refuses a union that would exceed the sub-stream cap", () => {
+    const pins = (prefix: string) =>
+      Array.from(
+        { length: CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES },
+        (_, index) => `github:${prefix}:event${index}:human`,
+      );
+    const existing: CompositeCategoryRuleSpecV3 = {
+      ...closedRule,
+      notificationSubtype: undefined,
+      notificationSubtypeAny: pins("issue"),
+    };
+    const candidate: CompositeCategoryRuleSpecV3 = {
+      ...existing,
+      notificationSubtypeAny: pins("pr"),
+    };
+    expect(reconcileCompositeSpecs(existing, candidate)).toBeNull();
   });
 });

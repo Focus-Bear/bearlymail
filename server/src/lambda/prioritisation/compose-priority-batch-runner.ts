@@ -21,6 +21,7 @@ import { CategoryKeyAssignmentService } from "../../category-keys/category-key-a
 import { CategoryRulesService } from "../../category-rules/category-rules.service";
 import { ContactTypeClassifierService } from "../../crm/contact-type-classifier.service";
 import { CategoryRule } from "../../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../../database/entities/category-rule-tombstone.entity";
 import { Contact } from "../../database/entities/contact.entity";
 import { DebugConfig } from "../../database/entities/debug-config.entity";
 import { DebugData } from "../../database/entities/debug-data.entity";
@@ -163,6 +164,7 @@ function buildCategoryLayer(context: CompositionContext, llm: LlmLayer) {
     ),
     categoryRulesService: new CategoryRulesService(
       repo(CategoryRule),
+      repo(CategoryRuleTombstone),
       repo(Email),
       repo(EmailThread),
       repo(UserContext),

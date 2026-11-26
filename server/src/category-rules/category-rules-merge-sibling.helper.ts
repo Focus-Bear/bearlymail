@@ -10,6 +10,7 @@
  * each catches some emails the other misses; this helper performs the merge
  * deterministically so callers never get a near-duplicate sibling persisted.
  */
+import type { Logger } from "@nestjs/common";
 import { Repository } from "typeorm";
 
 import {
@@ -17,7 +18,9 @@ import {
   CompositeCategoryRuleSpec,
 } from "../database/entities/category-rule.entity";
 import {
+  compositeAutoSpecsMatch,
   compositeRulesShouldReconcile,
+  compositeSpecCovers,
   mergeBodyPhrasesIntoSibling,
   reconcileCompositeSpecs,
   senderAndSubjectMatch,
@@ -91,6 +94,100 @@ export async function mergeIntoSiblingRuleIfPossible(
     return { outcome: MERGE_OUTCOME_MERGED, rule: sibling };
   }
   return null;
+}
+
+/**
+ * Returns a rule for the same category that already does everything the
+ * candidate would — reconciling the candidate into it would change nothing
+ * (see {@link reconcileCompositeSpecs}) — or null. Disabled rules count: a
+ * rule the user switched off must not come back as a fresh enabled copy.
+ * Checked before the gates so a duplicate costs no LLM call.
+ */
+export function findSameCategoryRuleCoveringCandidate(
+  compositeRules: CategoryRule[],
+  candidateSpec: CompositeCategoryRuleSpec,
+  categoryId: string | null,
+): CategoryRule | null {
+  if (!categoryId) {
+    return null;
+  }
+  return (
+    compositeRules.find((rule) => {
+      const spec = rule.compositeSpec;
+      return (
+        rule.categoryId === categoryId &&
+        spec != null &&
+        compositeSpecCovers(spec, candidateSpec)
+      );
+    }) ?? null
+  );
+}
+
+export interface ExistingRuleForCandidateParams {
+  /** All of the user's composite rules (any category, any enabled state). */
+  compositeRules: CategoryRule[];
+  candidateSpec: CompositeCategoryRuleSpec;
+  categoryName: string;
+  categoryId: string | null;
+  repository: Repository<CategoryRule>;
+  logger: Pick<Logger, "log">;
+  userId: string;
+}
+
+/**
+ * Re-points an exact duplicate of `candidateSpec` (in any category) at the
+ * candidate's category and returns it, or returns null when none exists.
+ */
+async function reuseExactDuplicate(
+  params: ExistingRuleForCandidateParams,
+): Promise<CategoryRule | null> {
+  const { compositeRules, candidateSpec, categoryName, categoryId } = params;
+  const duplicate = compositeRules.find(
+    (rule) =>
+      rule.compositeSpec != null &&
+      compositeAutoSpecsMatch(rule.compositeSpec, candidateSpec),
+  );
+  if (!duplicate) {
+    return null;
+  }
+  if (
+    duplicate.categoryId !== categoryId ||
+    duplicate.categoryName !== categoryName
+  ) {
+    duplicate.categoryId = categoryId;
+    duplicate.categoryName = categoryName;
+    await params.repository.save(duplicate);
+    params.logger.log(
+      `[CategoryRules] Updated category for existing composite rule ${duplicate.id} → "${categoryName}"`,
+    );
+  }
+  return duplicate;
+}
+
+/**
+ * The existing rule an auto-generated candidate should be reused as, or null
+ * when the candidate is genuinely new: an exact duplicate in any category
+ * (re-pointed at this one), else a same-category rule that already covers it
+ * (see {@link findSameCategoryRuleCoveringCandidate}).
+ */
+export async function findExistingRuleForCandidate(
+  params: ExistingRuleForCandidateParams,
+): Promise<CategoryRule | null> {
+  const duplicate = await reuseExactDuplicate(params);
+  if (duplicate) {
+    return duplicate;
+  }
+  const covering = findSameCategoryRuleCoveringCandidate(
+    params.compositeRules,
+    params.candidateSpec,
+    params.categoryId,
+  );
+  if (covering) {
+    params.logger.log(
+      `[CategoryRules] Skipping auto composite rule — existing rule ${covering.id} already covers it for user ${params.userId} category="${params.categoryName}"`,
+    );
+  }
+  return covering;
 }
 
 export interface ReconcileCandidateParams {

@@ -54,6 +54,10 @@ export interface CompositeSpecV3 {
   emailAttachment?: Record<string, string>;
   emailReceived?: string;
   emailRead?: string;
+  /** One notification sub-stream the rule is pinned to (e.g. `github:issue:closed:human`). */
+  notificationSubtype?: string;
+  /** Several sub-streams (OR within); the server stores one pin in `notificationSubtype`. */
+  notificationSubtypeAny?: string[];
   githubStateAny?: GithubItemState[];
   githubProjectStatusAny?: GithubProjectStatusCondition[];
   githubAuthorKind?: GithubActorKind;
@@ -131,6 +135,51 @@ export function specHasGithubConditions(spec: CompositeSpec): boolean {
     conditions.labels.length > 0 ||
     conditions.authorKind !== undefined
   );
+}
+
+/**
+ * Every notification sub-stream the spec is pinned to (single pin ∪ set); empty
+ * for unpinned and v1/v2 specs. A pinned rule only matches mail of that kind,
+ * so it is the condition that separates e.g. human issue closures from the
+ * rest of `notifications@github.com`.
+ */
+export function specNotificationSubtypes(spec: CompositeSpec): string[] {
+  if (spec.v !== 3) {
+    return [];
+  }
+  const pins = [spec.notificationSubtype, ...(spec.notificationSubtypeAny ?? [])];
+  return Array.from(new Set(pins.filter((pin): pin is string => Boolean(pin?.trim()))));
+}
+
+/** The structural conditions of a v3 spec that the rule form cannot edit. */
+export type CompositeSpecStructuralConditions = Pick<
+  CompositeSpecV3,
+  | 'notificationSubtype'
+  | 'notificationSubtypeAny'
+  | 'githubStateAny'
+  | 'githubProjectStatusAny'
+  | 'githubAuthorKind'
+  | 'githubLabelsAny'
+>;
+
+/**
+ * The spec's sub-stream and GitHub-metadata pins, to send back unchanged when
+ * the user edits the rule's phrases. Without them the server would replace the
+ * spec with a phrase-only one, silently widening the rule to every email from
+ * the sender (or rejecting it when it has no phrases).
+ */
+export function specStructuralConditions(spec: CompositeSpec): CompositeSpecStructuralConditions {
+  if (spec.v !== 3) {
+    return {};
+  }
+  return {
+    ...(spec.notificationSubtype && { notificationSubtype: spec.notificationSubtype }),
+    ...(spec.notificationSubtypeAny && { notificationSubtypeAny: spec.notificationSubtypeAny }),
+    ...(spec.githubStateAny && { githubStateAny: spec.githubStateAny }),
+    ...(spec.githubProjectStatusAny && { githubProjectStatusAny: spec.githubProjectStatusAny }),
+    ...(spec.githubAuthorKind && { githubAuthorKind: spec.githubAuthorKind }),
+    ...(spec.githubLabelsAny && { githubLabelsAny: spec.githubLabelsAny }),
+  };
 }
 
 /** `Board / QA passed` when scoped to a project, otherwise just the status. */

@@ -9,6 +9,7 @@ import { AutoResponseLog } from "../database/entities/auto-response-log.entity";
 import { CategoryConsolidationRun } from "../database/entities/category-consolidation-run.entity";
 import { CategoryFamily } from "../database/entities/category-family.entity";
 import { CategoryRule } from "../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../database/entities/category-rule-tombstone.entity";
 import { ContextAnalysis } from "../database/entities/context-analysis.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
@@ -62,6 +63,7 @@ import { WritingStyleLearningService } from "./writing-style-learning.service";
       CategoryConsolidationRun,
       CategoryFamily,
       CategoryRule,
+      CategoryRuleTombstone,
       User,
     ]),
     LLMModule,

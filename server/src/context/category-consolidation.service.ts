@@ -4,6 +4,7 @@ import { In, Repository } from "typeorm";
 
 import { CategoryFamily } from "../database/entities/category-family.entity";
 import { CategoryRule } from "../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../database/entities/category-rule-tombstone.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ContextKey,
@@ -99,6 +100,8 @@ export class CategoryConsolidationService {
     private readonly emailThreadRepository: Repository<EmailThread>,
     @InjectRepository(CategoryRule)
     private readonly categoryRuleRepository: Repository<CategoryRule>,
+    @InjectRepository(CategoryRuleTombstone)
+    private readonly categoryRuleTombstoneRepository: Repository<CategoryRuleTombstone>,
     @InjectRepository(CategoryFamily)
     private readonly familyRepository: Repository<CategoryFamily>,
     private readonly llmService: LLMService,
@@ -469,8 +472,9 @@ export class CategoryConsolidationService {
   }
 
   /**
-   * Re-points a loser category's threads and rules to the survivor, then deletes
-   * the loser context. Returns the number of threads reassigned.
+   * Re-points a loser category's threads, rules and deleted-rule tombstones to
+   * the survivor, then deletes the loser context. Returns the number of threads
+   * reassigned.
    */
   private async mergeCategoryInto(
     userId: string,
@@ -485,6 +489,12 @@ export class CategoryConsolidationService {
     await this.categoryRuleRepository.update(
       { userId, categoryId: loser.contextId },
       { categoryId: survivor.contextId, categoryName: survivor.name },
+    );
+    // Deleted-rule memory follows the rules; deleting the loser would otherwise
+    // cascade it away and let the generator recreate them under the survivor.
+    await this.categoryRuleTombstoneRepository.update(
+      { userId, categoryId: loser.contextId },
+      { categoryId: survivor.contextId },
     );
 
     await this.contextRepository.delete(loser.contextId);

@@ -22,6 +22,7 @@ import { CategoryConsolidationRun } from "./category-consolidation-run.entity";
 import { CategoryFamily } from "./category-family.entity";
 import { CategoryOverride } from "./category-override.entity";
 import { CategoryRule } from "./category-rule.entity";
+import { CategoryRuleTombstone } from "./category-rule-tombstone.entity";
 import { Contact } from "./contact.entity";
 import { ContactCustomField } from "./contact-custom-field.entity";
 import { ContactCustomFieldValue } from "./contact-custom-field-value.entity";
@@ -97,6 +98,7 @@ export const ALL_ENTITIES = [
   CategoryFamily,
   CategoryOverride,
   CategoryRule,
+  CategoryRuleTombstone,
   Contact,
   ContactCustomField,
   ContactCustomFieldValue,

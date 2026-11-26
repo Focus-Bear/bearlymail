@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import type { CategoryRuleDto, CategoryRuleSuggestion } from 'types/category-rules.types';
+import type {
+  CategoryRuleDto,
+  CategoryRuleSuggestion,
+  CompositeSpecStructuralConditions,
+} from 'types/category-rules.types';
 
 import { API_URL } from 'config/api';
 
@@ -18,7 +22,7 @@ export interface CreateCompositePayload {
 }
 
 /** PATCH body: composite criteria without version (server assigns v). */
-export interface PatchCompositeSpecPayload {
+export interface PatchCompositeSpecPayload extends CompositeSpecStructuralConditions {
   senderMatchesAny: string[];
   subjectContainsAny: string[];
   bodyContainsAny: string[];

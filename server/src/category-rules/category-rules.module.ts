@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { CategoryRule } from "../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../database/entities/category-rule-tombstone.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserContext } from "../database/entities/user-context.entity";
@@ -13,7 +14,13 @@ import { CategoryRulesService } from "./category-rules.service";
 @Module({
   imports: [
     SubscriptionsModule,
-    TypeOrmModule.forFeature([CategoryRule, Email, EmailThread, UserContext]),
+    TypeOrmModule.forFeature([
+      CategoryRule,
+      CategoryRuleTombstone,
+      Email,
+      EmailThread,
+      UserContext,
+    ]),
     LLMModule,
   ],
   controllers: [CategoryRulesController],

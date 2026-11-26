@@ -363,7 +363,7 @@ const RULE_TOOL_SPECS: readonly McpToolSpec[] = [
   {
     name: MCP_TOOL_NAMES.DELETE_RULES,
     title: "Delete rules",
-    description: `DESTRUCTIVE: permanently delete up to ${MCP_SETTINGS.MAX_RULE_IDS_PER_CALL} rules. It can't be undone; prefer set_rules_enabled(false) unless the user asked to delete. Run with dryRun first and get the user's OK. The result echoes each deleted rule in full. ${
+    description: `DESTRUCTIVE: permanently delete up to ${MCP_SETTINGS.MAX_RULE_IDS_PER_CALL} rules. It can't be undone; prefer set_rules_enabled(false) unless the user asked to delete. Deleting an auto-generated rule also stops BearlyMail generating it, or a narrower copy, again. Run with dryRun first and get the user's OK. The result echoes each deleted rule in full. ${
       CHANGE_NOTE
     }`,
     inputSchema: {

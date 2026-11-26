@@ -65,4 +65,42 @@ describe('DeterministicCategoryRulesPanel', () => {
     fireEvent.click(checkbox);
     expect(onToggle).toHaveBeenCalledWith('1', false);
   });
+
+  it('shows the notification sub-streams a structural rule is pinned to', () => {
+    render(
+      <DeterministicCategoryRulesPanel
+        rules={[
+          {
+            id: 'structural',
+            categoryName: 'Human GitHub issue status updates',
+            categoryId: 'cat-issues',
+            ruleKind: 'composite',
+            ruleType: null,
+            pattern: '',
+            subjectPrefix: null,
+            compositeSpec: {
+              v: 3,
+              fromMatchesAny: ['notifications@github.com'],
+              subjectContainsAny: [],
+              bodyContainsAny: [],
+              bodyNotContainsAny: ['Test Environment'],
+              notificationSubtypeAny: ['github:issue:closed:human', 'github:issue:reopened:human'],
+            },
+            isEnabled: true,
+            hitCount: 35,
+            createdAt: '',
+            updatedAt: '',
+          },
+        ]}
+        onToggleEnabled={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(
+        'settings.deterministicCategoryRules.notificationSubtypeField: github:issue:closed:human' +
+          'settings.deterministicCategoryRules.bodyPhraseSeparatorgithub:issue:reopened:human'
+      )
+    ).toBeInTheDocument();
+  });
 });

@@ -545,6 +545,68 @@ export function reconcileCompositeSpecs(
 }
 
 /**
+ * True when `existing` already does everything `candidate` would for the same
+ * category: the two reconcile, and folding the candidate in adds nothing (see
+ * {@link reconcileCompositeSpecs}).
+ */
+export function compositeSpecCovers(
+  existing: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): boolean {
+  return (
+    compositeRulesShouldReconcile(existing, candidate) &&
+    reconcileCompositeSpecs(existing, candidate) === existing
+  );
+}
+
+/** `spec` with its subject/body exclusions removed (v1 has none). */
+function withoutExclusions(
+  spec: CompositeCategoryRuleSpec,
+): CompositeCategoryRuleSpec {
+  if (spec.v === CATEGORY_RULE_COMPOSITE.SPEC_VERSION_V1) {
+    return spec;
+  }
+  return { ...spec, subjectNotContainsAny: [], bodyNotContainsAny: [] };
+}
+
+/**
+ * True when `candidate` leaves the subject or body unconstrained where
+ * `broader` requires a phrase. An empty phrase list matches every email, so
+ * such a candidate is wider than `broader` even though its (empty) phrase set
+ * is a subset of `broader`'s.
+ */
+function dropsPhraseConstraint(
+  broader: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): boolean {
+  const broaderV2 = specToV2(broader);
+  const candidateV2 = specToV2(candidate);
+  const drops = (broaderList: string[], candidateList: string[]) =>
+    toCiSet(candidateList).size === 0 && toCiSet(broaderList).size > 0;
+  return (
+    drops(broaderV2.subjectContainsAny, candidateV2.subjectContainsAny) ||
+    drops(broaderV2.bodyContainsAny, candidateV2.bodyContainsAny)
+  );
+}
+
+/**
+ * True when `candidate` is the same rule as `broader` or a narrower one:
+ * its positive conditions (senders, phrases, sub-stream pins, GitHub facts)
+ * are within `broader`'s, whatever exclusions either side carries. Extra
+ * exclusions only narrow a rule further, so they never make it a different
+ * rule from the one the user threw away.
+ */
+export function compositeSpecWithinPositiveConditions(
+  broader: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): boolean {
+  return (
+    compositeSpecCovers(broader, withoutExclusions(candidate)) &&
+    !dropsPhraseConstraint(broader, candidate)
+  );
+}
+
+/**
  * Returns true when `normFrom` matches the sender `normPattern`.
  * Supports domain wildcards of the form `*@domain.com`, which match any
  * address at that domain (e.g. `*@github.com` matches `notifications@github.com`).

@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { CategoryFamily } from "../database/entities/category-family.entity";
 import { CategoryRule } from "../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../database/entities/category-rule-tombstone.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import {
   ContextKey,
@@ -46,6 +47,7 @@ describe("CategoryConsolidationService", () => {
   let contextRepo: jest.Mocked<Repository<UserContext>>;
   let threadRepo: jest.Mocked<Repository<EmailThread>>;
   let ruleRepo: jest.Mocked<Repository<CategoryRule>>;
+  let tombstoneRepo: jest.Mocked<Repository<CategoryRuleTombstone>>;
   let familyRepo: jest.Mocked<Repository<CategoryFamily>>;
   let llmService: { identifyDuplicateCategories: jest.Mock };
   let familyService: { ensureFamiliesForUser: jest.Mock };
@@ -102,6 +104,10 @@ describe("CategoryConsolidationService", () => {
       update: jest.fn().mockResolvedValue({ affected: 0 }),
     } as unknown as jest.Mocked<Repository<CategoryRule>>;
 
+    tombstoneRepo = {
+      update: jest.fn().mockResolvedValue({ affected: 0 }),
+    } as unknown as jest.Mocked<Repository<CategoryRuleTombstone>>;
+
     familyRepo = {
       find: jest.fn().mockResolvedValue([
         { id: FA, name: "GitHub / Pull Requests" },
@@ -126,6 +132,10 @@ describe("CategoryConsolidationService", () => {
         { provide: getRepositoryToken(UserContext), useValue: contextRepo },
         { provide: getRepositoryToken(EmailThread), useValue: threadRepo },
         { provide: getRepositoryToken(CategoryRule), useValue: ruleRepo },
+        {
+          provide: getRepositoryToken(CategoryRuleTombstone),
+          useValue: tombstoneRepo,
+        },
         { provide: getRepositoryToken(CategoryFamily), useValue: familyRepo },
         { provide: LLMService, useValue: llmService },
         { provide: CategoryFamilyService, useValue: familyService },
@@ -152,6 +162,15 @@ describe("CategoryConsolidationService", () => {
       { categoryId: "a2" },
     );
     expect(contextRepo.delete).toHaveBeenCalledWith("a1");
+  });
+
+  it("moves a merged category's deleted-rule tombstones to the survivor", async () => {
+    await service.consolidate("u1");
+
+    expect(tombstoneRepo.update).toHaveBeenCalledWith(
+      { userId: "u1", categoryId: "a1" },
+      { categoryId: "a2" },
+    );
   });
 
   it("prunes only auto categories that never had a thread", async () => {

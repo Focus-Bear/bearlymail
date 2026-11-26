@@ -20,6 +20,7 @@ import {
 import {
   compositeAutoSpecsMatch,
   compositeRulesShouldReconcile,
+  compositeSpecCovers,
   mergeBodyPhrasesIntoSibling,
   reconcileCompositeSpecs,
   senderAndSubjectMatch,
@@ -116,8 +117,7 @@ export function findSameCategoryRuleCoveringCandidate(
       return (
         rule.categoryId === categoryId &&
         spec != null &&
-        compositeRulesShouldReconcile(spec, candidateSpec) &&
-        reconcileCompositeSpecs(spec, candidateSpec) === spec
+        compositeSpecCovers(spec, candidateSpec)
       );
     }) ?? null
   );

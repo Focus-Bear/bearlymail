@@ -14,6 +14,7 @@ import {
   CompositeCategoryRuleSpec,
   CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
+import { CategoryRuleTombstone } from "../database/entities/category-rule-tombstone.entity";
 import { Email } from "../database/entities/email.entity";
 import { EmailThread } from "../database/entities/email-thread.entity";
 import { UserContext } from "../database/entities/user-context.entity";
@@ -71,6 +72,10 @@ import {
   countDistinctThreadsForSenderHmac,
 } from "./category-rules-suggest.helper";
 import {
+  deleteRuleRememberingAutoRules,
+  loadDeletedRuleCheck,
+} from "./category-rules-tombstone.helper";
+import {
   buildRuleEvaluationDebug,
   collectMatchingRuleIds,
   resolveRuleCategoryId,
@@ -100,6 +105,8 @@ export class CategoryRulesService {
   constructor(
     @InjectRepository(CategoryRule)
     private readonly categoryRuleRepository: Repository<CategoryRule>,
+    @InjectRepository(CategoryRuleTombstone)
+    private readonly categoryRuleTombstoneRepository: Repository<CategoryRuleTombstone>,
     @InjectRepository(Email)
     private readonly emailRepository: Repository<Email>,
     @InjectRepository(EmailThread)
@@ -359,10 +366,11 @@ export class CategoryRulesService {
   }
 
   /**
-   * Reuses an exact-duplicate rule when present; otherwise runs the persist
-   * gate (match → value-add → exclusion requirement), then the strong-model
-   * sanity review, and creates the rule only when both pass. Returns null when
-   * either gate rejects the candidate. Auto-generation only — hand-authored
+   * Skips a candidate covered by a rule the user deleted, and reuses an
+   * existing rule that covers it; otherwise runs the persist gate (match →
+   * value-add → exclusion requirement), then the strong-model sanity review,
+   * and creates the rule only when both pass. Returns null when the candidate
+   * is suppressed or either gate rejects it. Auto-generation only — hand-authored
    * rules go through `createCompositeRule` and are never sanity-reviewed.
    */
   private async gateAndPersistCompositeRule(
@@ -381,6 +389,16 @@ export class CategoryRulesService {
     // the persist gate (which uses them for the value-add comparison) to avoid
     // redundant queries.
     const compositeRules = await this.findCompositeRules(userId);
+    const userDeletedRuleCovering = await loadDeletedRuleCheck({
+      repository: this.categoryRuleTombstoneRepository,
+      logger: this.logger,
+      userId,
+      categoryId,
+      categoryName: trimmedCategory,
+    });
+    if (userDeletedRuleCovering(candidateSpec)) {
+      return null;
+    }
 
     // A rule that already does everything the candidate would is reused as-is,
     // before any LLM spend on the gates.
@@ -419,7 +437,8 @@ export class CategoryRulesService {
         compositeRules,
       },
     );
-    if (!gated) {
+    // The sanity review can revise the candidate into a rule the user deleted.
+    if (!gated || userDeletedRuleCovering(gated.spec)) {
       return null;
     }
 
@@ -932,12 +951,14 @@ export class CategoryRulesService {
     return rules.map((rule) => this.toDto(rule));
   }
 
-  async deleteRule(userId: string, ruleId: string): Promise<boolean> {
-    const result = await this.categoryRuleRepository.delete({
-      id: ruleId,
+  /** Deletes a rule; an auto-generated one is remembered so it isn't regenerated. */
+  deleteRule(userId: string, ruleId: string): Promise<boolean> {
+    return deleteRuleRememberingAutoRules(
+      this.categoryRuleRepository,
+      this.categoryRuleTombstoneRepository,
       userId,
-    });
-    return (result.affected ?? 0) > 0;
+      ruleId,
+    );
   }
 
   private toDto(rule: CategoryRule): CategoryRuleDto {

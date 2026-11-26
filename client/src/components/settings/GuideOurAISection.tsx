@@ -5,6 +5,7 @@ import { DeterministicCategoryRulesSection } from 'components/settings/category-
 import { CategoryFamiliesSection } from 'components/settings/guide-ai/CategoryFamiliesSection';
 import { ContextAboutMeSection } from 'components/settings/guide-ai/ContextAboutMeSection';
 import { GuideOurAISectionHeader } from 'components/settings/guide-ai/GuideOurAISectionHeader';
+import { GuideOurAISubNav } from 'components/settings/guide-ai/GuideOurAISubNav';
 import { SummarizationRulesSection } from 'components/settings/guide-ai/SummarizationRulesSection';
 import { ToneSettingsSection } from 'components/settings/guide-ai/ToneSettingsSection';
 import { PriorityRulesSection } from 'components/settings/priority-rules/PriorityRulesSection';
@@ -178,6 +179,7 @@ export const GuideOurAISection: React.FC<GuideOurAISectionProps> = ({
         }}
       >
         <GuideOurAISectionHeader />
+        <GuideOurAISubNav />
 
         <ContextAboutMeSection
           contexts={contexts}

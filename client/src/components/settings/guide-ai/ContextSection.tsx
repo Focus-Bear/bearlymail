@@ -26,6 +26,7 @@ import {
   STRING_NONE,
 } from 'constants/strings';
 import { useCategoryRuleFromCategory } from 'contexts/CategoryRuleFromCategoryContext';
+import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 import { EmailCategoryContextDisplay } from './EmailCategoryContextDisplay';
 
@@ -59,8 +60,10 @@ interface ContextSectionProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
-  /** If true, the section will be expanded by default (useful for deep-linking) */
+  /** If true, the section starts expanded */
   isInitiallyExpanded?: boolean;
+  /** DOM id for `/settings#<anchorId>` links; a link to it expands the section. */
+  anchorId?: string;
   /** If true, a search input is shown at the top of the section body to filter items */
   searchable?: boolean;
 }
@@ -262,9 +265,11 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditingContextIdChange,
   onEditContextValueChange,
   isInitiallyExpanded = false,
+  anchorId,
   searchable = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
+  const sectionRef = useExpandWhenLinked(setIsExpanded);
   const [searchTerm, setSearchTerm] = useState('');
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(ctx => keys.includes(ctx.contextKey));
@@ -292,6 +297,8 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
 
   return (
     <div
+      id={anchorId}
+      ref={sectionRef}
       style={{
         marginBottom: theme.spacing.lg,
         border: `1px solid ${theme.colors.border.light}`,

@@ -1,48 +1,15 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiChevronDown, FiChevronRight } from 'react-icons/fi';
-import { useLocation } from 'react-router-dom';
 import { theme } from 'theme/theme';
 
 import { COLOR_TRANSPARENT } from 'constants/colors';
-import { ANCHOR_FIND_TIMEOUT_MS, ANCHOR_POLL_MS } from 'hooks/useSettingsAnchorScroll';
+import { useOpenForLinkedSection } from 'hooks/useOpenForLinkedSection';
 
 interface AdvancedSettingsProps {
   /** Names what is inside, e.g. "Slot length and time zone". */
   summary: string;
   children: React.ReactNode;
-}
-
-/**
- * Opens when the URL hash names a section inside `containerRef` (a deep link such
- * as `/settings#own-ai-account`). Sections load their own data and appear late,
- * so it keeps looking for a few seconds, like useSettingsTabs does.
- */
-function useOpenForLinkedSection(containerRef: React.RefObject<HTMLElement | null>, open: () => void): void {
-  const { hash, key } = useLocation();
-
-  useEffect(() => {
-    const anchorId = decodeURIComponent(hash.replace(/^#/, ''));
-    if (!anchorId) {
-      return undefined;
-    }
-    const startedAt = Date.now();
-    let timer: number | undefined;
-    const openIfInside = () => {
-      const target = document.getElementById(anchorId);
-      if (target) {
-        if (containerRef.current?.contains(target)) {
-          open();
-        }
-        return;
-      }
-      if (Date.now() - startedAt < ANCHOR_FIND_TIMEOUT_MS) {
-        timer = window.setTimeout(openIfInside, ANCHOR_POLL_MS);
-      }
-    };
-    openIfInside();
-    return () => window.clearTimeout(timer);
-  }, [hash, key, containerRef, open]);
 }
 
 /**

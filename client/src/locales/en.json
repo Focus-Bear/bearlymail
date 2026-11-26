@@ -1850,7 +1850,8 @@
     },
     "guideAI": {
       "title": "Guide Our AI",
-      "description": "Customize how BearlyMail understands and processes your emails"
+      "description": "Customize how BearlyMail understands and processes your emails",
+      "sectionNavLabel": "Guide Our AI sections"
     },
     "tone": {
       "viewEmail": "View email"

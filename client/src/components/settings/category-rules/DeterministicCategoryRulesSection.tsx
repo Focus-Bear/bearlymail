@@ -6,7 +6,7 @@ import { AddRuleChoiceDialog } from 'components/settings/category-rules/AddRuleC
 import { CompositeCategoryRuleFormModal } from 'components/settings/category-rules/CompositeCategoryRuleFormModal';
 import { DeterministicCategoryRulesPanel } from 'components/settings/category-rules/DeterministicCategoryRulesPanel';
 import { SuggestRulesDialog } from 'components/settings/category-rules/SuggestRulesDialog';
-import { COLOR_WHITE } from 'constants/colors';
+import { CollapsibleSettingsSection, SectionHeaderActionButton } from 'components/settings/CollapsibleSettingsSection';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useDeterministicCategoryRulesSectionState } from 'hooks/settings/useDeterministicCategoryRulesSectionState';
 
@@ -47,57 +47,30 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
   } = controller;
 
   return (
-    <div
-      id={SETTINGS_ANCHORS.CATEGORY_RULES}
-      style={{
-        marginTop: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
-        borderTop: `1px solid ${theme.colors.border.light}`,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          marginBottom: theme.spacing.md,
-        }}
+    <>
+      <CollapsibleSettingsSection
+        anchorId={SETTINGS_ANCHORS.CATEGORY_RULES}
+        title={t('settings.deterministicCategoryRules.sectionTitle')}
+        itemCount={loading ? undefined : rules.length}
+        headerAction={
+          // Issue #1714: clicking "Add rule" opens a choice dialog
+          <SectionHeaderActionButton label={t('settings.deterministicCategoryRules.addRule')} onClick={openAddChoice} />
+        }
       >
-        <h3 style={{ margin: 0, fontSize: theme.typography.fontSize.lg, flex: '1 1 auto' }}>
-          {t('settings.deterministicCategoryRules.sectionTitle')}
-        </h3>
-        {/* Issue #1714: clicking "Add rule" now opens a choice dialog */}
-        <button
-          type="button"
-          onClick={openAddChoice}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            borderRadius: theme.borderRadius.sm,
-            border: 'none',
-            background: theme.colors.primary.main,
-            color: COLOR_WHITE,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('settings.deterministicCategoryRules.addRule')}
-        </button>
-      </div>
-
-      {loading ? (
-        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-          {t('common.loading')}
-        </p>
-      ) : (
-        <DeterministicCategoryRulesPanel
-          rules={rules}
-          onToggleEnabled={handleToggle}
-          onDelete={handleDelete}
-          onEditComposite={openEdit}
-          onUpgradeToComposite={rule => openAddWithPrefill(rule.categoryName)}
-        />
-      )}
+        {loading ? (
+          <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+            {t('common.loading')}
+          </p>
+        ) : (
+          <DeterministicCategoryRulesPanel
+            rules={rules}
+            onToggleEnabled={handleToggle}
+            onDelete={handleDelete}
+            onEditComposite={openEdit}
+            onUpgradeToComposite={rule => openAddWithPrefill(rule.categoryName)}
+          />
+        )}
+      </CollapsibleSettingsSection>
 
       {/* Step 1 — Choice: manual vs. suggest */}
       <AddRuleChoiceDialog
@@ -129,6 +102,6 @@ export const DeterministicCategoryRulesSection: React.FC<DeterministicCategoryRu
         onClose={closeModal}
         onSubmit={handleFormSubmit}
       />
-    </div>
+    </>
   );
 };

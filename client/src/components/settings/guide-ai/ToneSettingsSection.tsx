@@ -6,7 +6,9 @@ import { captureEvent } from 'utils/posthog';
 import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
+import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 interface ToneSettingsSectionProps {
   toneRules: string[];
@@ -107,11 +109,13 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const sectionRef = useExpandWhenLinked(setIsExpanded);
   const itemCount = toneRules.length;
 
   return (
     <div
-      id="tone-settings"
+      id={SETTINGS_ANCHORS.TONE_SETTINGS}
+      ref={sectionRef}
       style={{
         marginBottom: theme.spacing.lg,
         border: `1px solid ${theme.colors.border.light}`,

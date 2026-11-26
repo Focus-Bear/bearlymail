@@ -11,6 +11,7 @@
  */
 import React, { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router-dom';
 import type { Meta, StoryObj } from '@storybook/react';
 import i18n from 'i18n';
 import type { CategoryRuleDto } from 'types/category-rules.types';
@@ -142,6 +143,8 @@ const CategoryRulesAccordionDemo: React.FC<{
 const meta: Meta<typeof ContextSection> = {
   title: 'Settings/GuideAI/CategoryRulesAccordion',
   component: ContextSection,
+  // The section opens itself for `/settings#<id>` links, which needs a router.
+  decorators: [Story => <MemoryRouter><Story /></MemoryRouter>],
   parameters: {
     layout: 'padded',
     docs: {

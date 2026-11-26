@@ -17,6 +17,7 @@ import {
   STRING_NONE,
 } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
+import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 interface UserContext {
   contextId: string;
@@ -44,6 +45,8 @@ interface QAndASectionProps {
   onEditContextValueChange: (value: string) => void;
   onRefresh?: () => void;
   isInitiallyExpanded?: boolean;
+  /** DOM id for `/settings#<anchorId>` links; a link to it expands the section. */
+  anchorId?: string;
 }
 
 function parseQAndA(contextValue: string): { question: string; answer: string } {
@@ -798,8 +801,10 @@ export const QAndASection: React.FC<QAndASectionProps> = ({
   onEditContextValueChange,
   onRefresh,
   isInitiallyExpanded = false,
+  anchorId,
 }) => {
   const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
+  const sectionRef = useExpandWhenLinked(setIsExpanded);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
 
   const qaContexts = contexts.filter(ctx => ctx.contextKey === CONTEXT_KEY_Q_AND_A);
@@ -815,6 +820,8 @@ export const QAndASection: React.FC<QAndASectionProps> = ({
 
   return (
     <div
+      id={anchorId}
+      ref={sectionRef}
       style={{
         marginBottom: theme.spacing.lg,
         border: `1px solid ${theme.colors.border.light}`,

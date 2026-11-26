@@ -6,7 +6,9 @@ import { SummarizationRuleAddForm } from 'components/settings/guide-ai/Summariza
 import { SummarizationRuleItem } from 'components/settings/guide-ai/SummarizationRuleItem';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { STRING_NONE } from 'constants/strings';
+import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 interface SummarizationRule {
   ruleId: string;
@@ -211,11 +213,13 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
   const { t } = useTranslation();
   const [showAddForm, setShowAddForm] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const sectionRef = useExpandWhenLinked(setIsExpanded);
   const itemCount = summarizationRules.length;
 
   return (
     <div
-      id="summarization"
+      id={SETTINGS_ANCHORS.SUMMARIZATION_RULES}
+      ref={sectionRef}
       style={{
         marginTop: theme.spacing.lg,
         border: `1px solid ${theme.colors.border.light}`,

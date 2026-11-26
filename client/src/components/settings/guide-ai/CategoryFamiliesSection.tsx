@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { CollapsibleSettingsSection } from 'components/settings/CollapsibleSettingsSection';
 import {
   COLOR_ERROR_MED,
   COLOR_GREY_BORDER,
@@ -115,9 +116,12 @@ export const CategoryFamiliesSection: React.FC = () => {
   };
 
   return (
-    <section id={SETTINGS_ANCHORS.CATEGORY_FAMILIES} aria-labelledby="category-families-heading" style={{ marginTop: 24 }}>
-      <h3 id="category-families-heading">{t('settings.categoryFamilies.title')}</h3>
-      <p style={{ color: COLOR_GREY_MID }}>{t('settings.categoryFamilies.description')}</p>
+    <CollapsibleSettingsSection
+      anchorId={SETTINGS_ANCHORS.CATEGORY_FAMILIES}
+      title={t('settings.categoryFamilies.title')}
+      itemCount={isLoading || error ? undefined : families.length}
+    >
+      <p style={{ color: COLOR_GREY_MID, marginTop: 0 }}>{t('settings.categoryFamilies.description')}</p>
 
       {isLoading && <p>{t('settings.categoryFamilies.loading')}</p>}
       {error && <p style={{ color: COLOR_ERROR_MED }}>{t('settings.categoryFamilies.loadError')}</p>}
@@ -152,6 +156,6 @@ export const CategoryFamiliesSection: React.FC = () => {
           {t('settings.categoryFamilies.create')}
         </button>
       </div>
-    </section>
+    </CollapsibleSettingsSection>
   );
 };

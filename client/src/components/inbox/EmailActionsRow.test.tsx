@@ -148,11 +148,12 @@ describe('EmailActionsRow Unsubscribe', () => {
 
     const offer = await screen.findByRole('dialog', { name: 'inbox.unsubscribeFlow.doneTitle' });
     expect(within(offer).getByText('inbox.unsubscribeFlow.archiveOfferWithOthers')).toBeInTheDocument();
+    expect(within(offer).getByRole('note')).toHaveTextContent('inbox.unsubscribeFlow.blockWarningTitle');
     expect(mockedPost).toHaveBeenCalledWith(expect.stringMatching(/\/emails\/email-1\/unsubscribe$/), {
       method: UNSUBSCRIBE_METHODS.ONE_CLICK,
     });
 
-    fireEvent.click(within(offer).getByRole('button', { name: 'inbox.archive' }));
+    fireEvent.click(within(offer).getByRole('button', { name: 'inbox.unsubscribeFlow.archiveAndBlock' }));
 
     await waitFor(() =>
       expect(mockedPost).toHaveBeenLastCalledWith(expect.stringMatching(/\/emails\/email-1\/unsubscribe\/archive-sender$/))

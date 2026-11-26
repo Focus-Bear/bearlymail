@@ -18,6 +18,8 @@ interface ConfirmModalProps {
   /** Optional third action rendered between cancel and confirm. */
   secondaryLabel?: string;
   onSecondary?: () => void;
+  /** Extra content under the message, e.g. a warning the user must not miss. */
+  notice?: React.ReactNode;
 }
 
 /** Escape answers the dialog with its cancel action, like clicking the backdrop. */
@@ -53,6 +55,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
   secondaryLabel,
   onSecondary,
+  notice,
 }) => {
   useCancelOnEscape(isOpen, onCancel);
 
@@ -94,6 +97,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       >
         <ConfirmModalHeader icon={icon} title={title} />
         <ConfirmModalBody message={message} />
+        {notice}
         <ConfirmModalFooter
           confirmLabel={confirmLabel}
           cancelLabel={cancelLabel}

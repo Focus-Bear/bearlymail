@@ -88,6 +88,7 @@ describe('SubscriptionsSection', () => {
 
     const confirm = screen.getByRole('alertdialog');
     expect(within(confirm).getByText('Weekly Deals (deals@shop.test)')).toBeInTheDocument();
+    expect(within(confirm).getByRole('note')).toHaveTextContent('settings.subscriptions.confirm.blockWarningTitle');
 
     await user.click(within(confirm).getByRole('button', { name: 'settings.subscriptions.confirm.cancel' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();

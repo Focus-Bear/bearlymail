@@ -9,7 +9,10 @@ import {
 } from "../auto-responder/automated-email-patterns";
 import { QA_EXTRACTION } from "../constants/llm-constants";
 import { cleanEmailContent } from "../llm/email-content-cleaner";
-import type { ExtractedQaCluster } from "../llm/qa-extraction-response";
+import {
+  type ExtractedQaCluster,
+  QA_ANSWER_KINDS,
+} from "../llm/qa-extraction-response";
 import { extractEmailAddress } from "../utils/email-address.utils";
 
 /** A message the user sent, as fetched from their Sent folder. */
@@ -61,6 +64,29 @@ const REPLY_SUBJECT_PREFIX = /^\s*(re|aw|sv)\s*:/i;
 const VERIFIABLE_FACT =
   /https?:\/\/[^\s)]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\d+(?:[.,:]\d+)*/g;
 const TRAILING_PUNCTUATION = /[.,;:!?]+$/;
+
+// "Any updates on this?", "Can you help with that?": the topic is a pointer
+// into the thread, so the question means nothing to the next asker. Limited
+// to a preposition + demonstrative at the very end, which never carries its
+// own topic; "it"/"them" are left out because they often refer back within
+// the same question ("Do you groom cats, and how long does it take?").
+const THREAD_POINTER_QUESTION_ENDING =
+  /\b(on|with|about|for|of|to|regarding)\s+(this|that|these|those)\s*\?$/i;
+
+// Answers written as instructions to an agent rather than as the reply
+// itself: they talk ABOUT the asker ("Instruct the user to…", "Tell the
+// sender…") or open with something a reply never says to its reader
+// ("Reiterate…", "Apologise for…", "Direct the team…"). Kept to phrasings a
+// real reply does not use, so a genuine answer is never dropped by them;
+// "Provide…" and "Request…" are left to the model because "Provide your order
+// number and…" is a perfectly good reply.
+const AGENT_INSTRUCTION_PATTERNS: readonly RegExp[] = [
+  /\bthe (asker|requester)s?\b/i,
+  /\b(instruct|tell|ask|direct|remind|advise|inform|thank)\s+the\s+senders?\b/i,
+  /\b(instruct|direct|advise|inform)\s+the\s+users?\b/i,
+  /^(instruct|reiterate|apologi[sz]e)\b/i,
+  /^direct\s+the\b/i,
+];
 
 const PERSON_LABEL_PREFIX = "Person";
 const QUESTION_MARK = "?";
@@ -238,6 +264,31 @@ function isWellFormedCluster(cluster: ExtractedQaCluster): boolean {
   );
 }
 
+/** True for a question whose topic is "this"/"that" from the thread it came from. */
+export function isThreadPointerQuestion(question: string): boolean {
+  return THREAD_POINTER_QUESTION_ENDING.test(question.trim());
+}
+
+/** True for an answer that tells an agent what to do instead of being the reply. */
+export function isAgentInstruction(answer: string): boolean {
+  const trimmed = answer.trim();
+  return AGENT_INSTRUCTION_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+
+/**
+ * True when the FAQ could be sent unchanged to the next person who asks. The
+ * model's own verdict decides most cases (nudges, order/bug status, answers
+ * that describe an action); the deterministic checks only catch the
+ * unambiguous shapes it has been seen to let through.
+ */
+function isReusableFaq(cluster: ExtractedQaCluster): boolean {
+  return (
+    cluster.answerKind === QA_ANSWER_KINDS.REUSABLE &&
+    !isThreadPointerQuestion(cluster.question) &&
+    !isAgentInstruction(cluster.answer)
+  );
+}
+
 function extractFacts(text: string): string[] {
   return (text.match(VERIFIABLE_FACT) ?? []).map((fact) =>
     fact.toLowerCase().replace(TRAILING_PUNCTUATION, ""),
@@ -268,9 +319,10 @@ function findClusterPairs(
 
 /**
  * Quality gate on the model's proposals. The repeat count comes from our own
- * data, never from the model: a cluster survives only if its pairs exist, were
- * asked by at least MIN_DISTINCT_ASKERS different people, and its answer
- * states no fact those people were not actually told.
+ * data, never from the model: a cluster survives only if it is a reusable
+ * answer (not a thread-bound nudge, a one-off case or a description of what to
+ * do), its pairs exist, were asked by at least MIN_DISTINCT_ASKERS different
+ * people, and its answer states no fact those people were not actually told.
  */
 export function verifyQaClusters(
   clusters: ExtractedQaCluster[],
@@ -279,7 +331,7 @@ export function verifyQaClusters(
   const pairById = new Map(pairs.map((pair) => [pair.id, pair]));
   const verified: VerifiedFaq[] = [];
   for (const cluster of clusters) {
-    if (!isWellFormedCluster(cluster)) continue;
+    if (!isWellFormedCluster(cluster) || !isReusableFaq(cluster)) continue;
     const clusterPairs = findClusterPairs(cluster, pairById);
     const askerCount = countDistinctAskers(clusterPairs);
     if (askerCount < QA_EXTRACTION.MIN_DISTINCT_ASKERS) continue;

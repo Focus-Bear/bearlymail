@@ -1,23 +1,54 @@
 description: "Common questions (learned FAQ) extraction prompts for BearlyMail"
 
+# Same model, temperature and structured-output schema as production
+# (LLMMiscService.extractQAndA). The schema must stay identical to
+# QA_EXTRACTION_RESPONSE_SCHEMA; qa-extraction-response.spec.ts checks it.
 providers:
   - id: google:gemini-3.1-flash-lite
     config:
       temperature: 0
+      responseSchema:
+        type: object
+        properties:
+          qa_pairs:
+            type: array
+            items:
+              type: object
+              properties:
+                question: { type: string }
+                answer: { type: string }
+                pairIds: { type: array, items: { type: integer } }
+                answerKind:
+                  type: string
+                  enum: [reusable, thread_dependent, case_specific, describes_action]
+                confidence: { type: number }
+              required: [question, answer, pairIds, answerKind, confidence]
+              propertyOrdering: [question, answer, pairIds, answerKind, confidence]
+        required: [qa_pairs]
 
 prompts:
   - file://prompts/extract-common-questions.md
 
+# The transform checks every entry's shape, then keeps only the entries
+# production would save (answerKind "reusable"), so each assertion sees exactly
+# what verifyQaClusters lets through on the model's side.
 defaultTest:
   options:
     transform: |
+      const ANSWER_KINDS = ['reusable', 'thread_dependent', 'case_specific', 'describes_action'];
       const text = typeof output === 'string' ? output : JSON.stringify(output);
       const start = text.indexOf('{');
       const end = text.lastIndexOf('}');
       if (start === -1 || end === -1) throw new Error('No JSON object in output');
       const parsed = JSON.parse(text.slice(start, end + 1));
       if (!Array.isArray(parsed.qa_pairs)) throw new Error('Missing qa_pairs array');
-      return parsed.qa_pairs;
+      for (const entry of parsed.qa_pairs) {
+        if (typeof entry.question !== 'string' || typeof entry.answer !== 'string') throw new Error(`question/answer must be strings: ${JSON.stringify(entry)}`);
+        if (!Array.isArray(entry.pairIds) || !entry.pairIds.every(Number.isInteger)) throw new Error(`pairIds must be integers: ${JSON.stringify(entry)}`);
+        if (!ANSWER_KINDS.includes(entry.answerKind)) throw new Error(`Unknown answerKind: ${JSON.stringify(entry)}`);
+        if (typeof entry.confidence !== 'number') throw new Error(`confidence must be a number: ${JSON.stringify(entry)}`);
+      }
+      return parsed.qa_pairs.filter((entry) => entry.answerKind === 'reusable');
 
 # A made-up dog-grooming business; no real mail.
 tests:
@@ -54,6 +85,98 @@ tests:
           if (/\$|sunday.*open/i.test(faq.answer)) throw new Error(`Answer added facts: ${faq.answer}`);
           return true;
 
+  - description: "Writes the answer as the reply itself, not a note about what to reply"
+    vars:
+      pairsText: |
+        [1] Asked by: Person 1
+        Subject: Can't log in
+        Question: I've forgotten my password for the booking site. How do I get back in?
+        User's reply: Hi Kim, no problem. Go to https://sunnypaws.example/login, click "Forgot password" and we'll email you a reset link. It expires after 30 minutes, so use it straight away.
+
+        ---
+
+        [2] Asked by: Person 2
+        Subject: Password reset
+        Question: How do I reset my password? The old one isn't working.
+        User's reply: Hi Leo, go to https://sunnypaws.example/login and click "Forgot password". We'll email you a reset link, which expires after 30 minutes.
+    assert:
+      - type: javascript
+        value: |
+          if (output.length !== 1) throw new Error(`Expected exactly one reusable FAQ, got ${JSON.stringify(output)}`);
+          const [faq] = output;
+          if (/^(instruct|tell|direct|provide|request|explain|inform|advise|guide|send)\b/i.test(faq.answer.trim())) throw new Error(`Answer is a note about what to reply: ${faq.answer}`);
+          if (/\bthe (user|sender|asker|customer)\b/i.test(faq.answer)) throw new Error(`Answer talks about the asker instead of to them: ${faq.answer}`);
+          if (!/forgot password/i.test(faq.answer) || !faq.answer.includes('https://sunnypaws.example/login')) throw new Error(`Answer lost the steps: ${faq.answer}`);
+          return true;
+
+  - description: "Nudges and follow-ups that only make sense inside their thread are not FAQs"
+    vars:
+      pairsText: |
+        [1] Asked by: Person 1
+        Subject: Re: Quote for the kennel extension
+        Question: Hi, any updates on this? Haven't heard back in a while.
+        User's reply: Hi Mia, sorry for the delay! I'm still waiting on the builder's figures and will get back to you by Friday with the final quote.
+
+        ---
+
+        [2] Asked by: Person 2
+        Subject: Re: Bulk shampoo order
+        Question: Just checking in, any news on this?
+        User's reply: Hi Noah, thanks for your patience. The supplier confirmed stock this morning, so I'll send the invoice over tomorrow.
+
+        ---
+
+        [3] Asked by: Person 3
+        Subject: Re: Online booking widget
+        Question: Can you follow up on this? We need a decision on the widget before we can start.
+        User's reply: Hi Olga, good point. Let's go with the embedded calendar option. Can you send me a rough timeline and we'll take it from there?
+
+        ---
+
+        [4] Asked by: Person 4
+        Subject: Re: Loyalty card redesign
+        Question: How should we proceed with this? Happy to go either way.
+        User's reply: Thanks Pete, I like the second design better. Could you mock it up with our new logo and send it through next week?
+    assert:
+      - type: javascript
+        value: |
+          if (output.length !== 0) throw new Error(`Expected no reusable FAQs, got ${JSON.stringify(output)}`);
+          return true;
+
+  - description: "Questions whose answer depends on the asker's own order or problem are not FAQs"
+    vars:
+      pairsText: |
+        [1] Asked by: Person 1
+        Subject: Where is my order?
+        Question: I ordered the oatmeal shampoo last week and it still hasn't arrived. What's the status of my order?
+        User's reply: Hi Quinn, so sorry about that! It shipped on Tuesday with tracking number SP-48213 and should reach you by Thursday.
+
+        ---
+
+        [2] Asked by: Person 2
+        Subject: Order status
+        Question: Has my order shipped yet? It's order 5521.
+        User's reply: Hi Rosa, yes, it went out yesterday with tracking number SP-50977. Let me know if it hasn't turned up by Monday.
+
+        ---
+
+        [3] Asked by: Person 3
+        Subject: Payment error
+        Question: The booking page shows an error when I try to pay. Do you think it is a problem on your end?
+        User's reply: Hi Sam, thanks for letting me know. Could you send me a screenshot of the error and the link you used? I'll check our payment settings.
+
+        ---
+
+        [4] Asked by: Person 4
+        Subject: Can't pay for booking
+        Question: Checkout keeps failing for me. Is something wrong with your site?
+        User's reply: Hi Tara, sorry about that. Can you send a screenshot of what you see? I'll ask our web developer to look into it today.
+    assert:
+      - type: javascript
+        value: |
+          if (output.length !== 0) throw new Error(`Expected no reusable FAQs, got ${JSON.stringify(output)}`);
+          return true;
+
   - description: "One person asking twice is not an FAQ"
     vars:
       pairsText: |
@@ -71,7 +194,7 @@ tests:
     assert:
       - type: javascript
         value: |
-          if (output.length !== 0) throw new Error(`Expected no FAQs, got ${JSON.stringify(output)}`);
+          if (output.length !== 0) throw new Error(`Expected no reusable FAQs, got ${JSON.stringify(output)}`);
           return true;
 
   - description: "Meeting acceptances and status chatter are not FAQs"
@@ -98,5 +221,5 @@ tests:
     assert:
       - type: javascript
         value: |
-          if (output.length !== 0) throw new Error(`Expected no FAQs, got ${JSON.stringify(output)}`);
+          if (output.length !== 0) throw new Error(`Expected no reusable FAQs, got ${JSON.stringify(output)}`);
           return true;

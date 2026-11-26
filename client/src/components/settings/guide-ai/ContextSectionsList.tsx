@@ -186,6 +186,7 @@ const CONTEXT_SECTIONS: ContextSectionConfig[] = [
     contextKey: CONTEXT_KEY_Q_AND_A,
     addLabelKey: 'settings.addContext.qa',
     tooltipKey: 'settings.contextTypes.tooltip.qanda',
+    anchorId: SETTINGS_ANCHORS.Q_AND_A,
   },
 ];
 
@@ -682,21 +683,20 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
         const key = `context-section-${contextKeyStr}`;
         const isEmailCategory = contextKeyStr === CONTEXT_KEY_EMAIL_CATEGORY;
         const isQAndA = contextKeyStr === CONTEXT_KEY_Q_AND_A;
-        const isAnchoredMatch = Boolean(config.anchorId && window.location.hash === `#${config.anchorId}`);
 
         if (isQAndA) {
           return (
             <QAndASection
               key={key}
               tooltipContent={t(config.tooltipKey)}
-              isInitiallyExpanded={isAnchoredMatch}
+              anchorId={config.anchorId}
               onRefresh={onRefreshContexts}
               {...commonProps}
             />
           );
         }
 
-        const sectionElement = (
+        return (
           <ContextSection
             key={key}
             title={config.title || (config.titleKey ? t(config.titleKey) : '')}
@@ -708,19 +708,11 @@ export const ContextSectionsList: React.FC<ContextSectionsListProps> = ({
                 <EmailCategoryControls actions={actionsWithConsolidate as CategoryActionsState} />
               ) : undefined
             }
-            isInitiallyExpanded={isAnchoredMatch}
+            anchorId={config.anchorId}
             searchable={isEmailCategory}
             {...commonProps}
           />
         );
-        if (config.anchorId) {
-          return (
-            <div key={key} id={config.anchorId}>
-              {sectionElement}
-            </div>
-          );
-        }
-        return sectionElement;
       })}
     </>
   );

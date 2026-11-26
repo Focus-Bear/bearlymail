@@ -12,6 +12,7 @@ import { captureEvent } from 'utils/posthog';
 import { OverflowMenu } from 'components/common/OverflowMenu';
 import { InfoTooltip } from 'components/InfoTooltip';
 import { DeterministicCategoryRuleRow } from 'components/settings/category-rules/DeterministicCategoryRuleRow';
+import { CollapsibleSettingsSection } from 'components/settings/CollapsibleSettingsSection';
 import { AddCategoryWorkflowModal } from 'components/settings/guide-ai/AddCategoryWorkflowModal';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
@@ -59,8 +60,10 @@ interface ContextSectionProps {
   onAddingContextTypeChange: (type: string | null) => void;
   onEditingContextIdChange: (id: string | null) => void;
   onEditContextValueChange: (value: string) => void;
-  /** If true, the section will be expanded by default (useful for deep-linking) */
+  /** If true, the section starts expanded */
   isInitiallyExpanded?: boolean;
+  /** DOM id for `/settings#<anchorId>` links; a link to it expands the section. */
+  anchorId?: string;
   /** If true, a search input is shown at the top of the section body to filter items */
   searchable?: boolean;
 }
@@ -106,7 +109,7 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <div style={{ padding: theme.spacing.md, display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
     {searchable && (
       <input
         type="text"
@@ -181,68 +184,6 @@ const ContextSectionBody: React.FC<ContextSectionBodyProps> = ({
   );
 };
 
-interface ContextSectionHeaderProps {
-  title: string;
-  itemCount: number;
-  isExpanded: boolean;
-  tooltipContent?: string;
-  actionButton?: React.ReactNode;
-  onToggle: () => void;
-}
-
-const ContextSectionHeader: React.FC<ContextSectionHeaderProps> = ({
-  title,
-  itemCount,
-  isExpanded,
-  tooltipContent,
-  actionButton,
-  onToggle,
-}) => (
-  <div
-    onClick={onToggle}
-    style={{
-      fontSize: theme.typography.fontSize.lg,
-      color: theme.colors.text.primary,
-      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-      display: 'flex',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: theme.spacing.sm,
-      cursor: 'pointer',
-      backgroundColor: theme.colors.background.paper,
-      borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-      borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-      transition: theme.transitions.fast,
-    }}
-  >
-    <span
-      style={{
-        transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-        transition: theme.transitions.fast,
-        fontSize: theme.typography.fontSize.base,
-        color: theme.colors.text.secondary,
-      }}
-    >
-      ▶
-    </span>
-    <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{title}</span>
-    <span
-      style={{
-        backgroundColor: theme.colors.greyscale[300],
-        color: theme.colors.text.secondary,
-        padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-        borderRadius: theme.borderRadius.full,
-        fontSize: theme.typography.fontSize.sm,
-        fontWeight: theme.typography.fontWeight.medium,
-      }}
-    >
-      {itemCount}
-    </span>
-    {tooltipContent && <InfoTooltip content={tooltipContent} />}
-    {actionButton && <div onClick={event => event.stopPropagation()}>{actionButton}</div>}
-  </div>
-);
-
 export const ContextSection: React.FC<ContextSectionProps> = ({
   title,
   contextKey,
@@ -262,14 +203,13 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
   onEditingContextIdChange,
   onEditContextValueChange,
   isInitiallyExpanded = false,
+  anchorId,
   searchable = false,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
   const [searchTerm, setSearchTerm] = useState('');
   const keys = Array.isArray(contextKey) ? contextKey : [contextKey];
   const filteredContexts = contexts.filter(ctx => keys.includes(ctx.contextKey));
   const addType = keys[0];
-  const itemCount = filteredContexts.length;
 
   const searchFilteredContexts =
     searchable && searchTerm
@@ -284,51 +224,37 @@ export const ContextSection: React.FC<ContextSectionProps> = ({
         })
       : filteredContexts;
 
-  React.useEffect(() => {
-    if (isInitiallyExpanded) {
-      setIsExpanded(true);
-    }
-  }, [isInitiallyExpanded]);
-
   return (
-    <div
-      style={{
-        marginBottom: theme.spacing.lg,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        backgroundColor: theme.colors.background.paper,
-      }}
+    <CollapsibleSettingsSection
+      anchorId={anchorId}
+      title={title}
+      itemCount={filteredContexts.length}
+      titleAdornment={tooltipContent ? <InfoTooltip content={tooltipContent} /> : undefined}
+      headerAction={actionButton}
+      headingTag="h4"
+      isInitiallyExpanded={isInitiallyExpanded}
+      shouldUnmountBodyWhenCollapsed
     >
-      <ContextSectionHeader
-        title={title}
-        itemCount={itemCount}
-        isExpanded={isExpanded}
-        tooltipContent={tooltipContent}
-        actionButton={actionButton}
-        onToggle={() => setIsExpanded(!isExpanded)}
+      <ContextSectionBody
+        filteredContexts={searchFilteredContexts}
+        addType={addType}
+        addLabel={addLabel}
+        addingContextType={addingContextType}
+        editingContextId={editingContextId}
+        editContextValue={editContextValue}
+        newContextValue={newContextValue}
+        onAddContext={onAddContext}
+        onUpdateContext={onUpdateContext}
+        onDeleteContext={onDeleteContext}
+        onNewContextValueChange={onNewContextValueChange}
+        onAddingContextTypeChange={onAddingContextTypeChange}
+        onEditingContextIdChange={onEditingContextIdChange}
+        onEditContextValueChange={onEditContextValueChange}
+        searchable={searchable}
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
       />
-      {isExpanded && (
-        <ContextSectionBody
-          filteredContexts={searchFilteredContexts}
-          addType={addType}
-          addLabel={addLabel}
-          addingContextType={addingContextType}
-          editingContextId={editingContextId}
-          editContextValue={editContextValue}
-          newContextValue={newContextValue}
-          onAddContext={onAddContext}
-          onUpdateContext={onUpdateContext}
-          onDeleteContext={onDeleteContext}
-          onNewContextValueChange={onNewContextValueChange}
-          onAddingContextTypeChange={onAddingContextTypeChange}
-          onEditingContextIdChange={onEditingContextIdChange}
-          onEditContextValueChange={onEditContextValueChange}
-          searchable={searchable}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-        />
-      )}
-    </div>
+    </CollapsibleSettingsSection>
   );
 };
 

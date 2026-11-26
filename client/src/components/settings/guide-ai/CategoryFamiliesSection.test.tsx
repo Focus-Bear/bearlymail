@@ -1,7 +1,10 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+
+import { SETTINGS_ANCHORS, settingsAnchorPath } from 'constants/settingsAnchors';
 
 import { CategoryFamiliesSection } from './CategoryFamiliesSection';
 
@@ -32,6 +35,21 @@ const FAMILIES = [
   },
 ];
 
+const TOGGLE_NAME = /settings\.categoryFamilies\.title/;
+
+const renderSection = (url = '/settings') =>
+  render(
+    <MemoryRouter initialEntries={[url]}>
+      <CategoryFamiliesSection />
+    </MemoryRouter>,
+  );
+
+/** The section starts collapsed, so most tests open it first. */
+const renderExpanded = async () => {
+  renderSection();
+  await userEvent.click(screen.getByRole('button', { name: TOGGLE_NAME }));
+};
+
 describe('CategoryFamiliesSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,15 +58,35 @@ describe('CategoryFamiliesSection', () => {
     mockedAxios.post.mockResolvedValue({ data: {} });
   });
 
+  it('starts collapsed with the family count in its header, and expands on toggle', async () => {
+    renderSection();
+
+    const toggle = await screen.findByRole('button', { name: /settings\.categoryFamilies\.title\s*2/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('Newsletters')).not.toBeVisible();
+
+    await userEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Newsletters')).toBeVisible();
+  });
+
+  it('expands itself when a link targets it', async () => {
+    renderSection(settingsAnchorPath(SETTINGS_ANCHORS.CATEGORY_FAMILIES));
+
+    expect(await screen.findByText('Newsletters')).toBeVisible();
+    expect(screen.getByRole('button', { name: TOGGLE_NAME })).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('loads and renders families with their categories', async () => {
-    render(<CategoryFamiliesSection />);
+    await renderExpanded();
     expect(await screen.findByText('🔧 GitHub PR Updates')).toBeInTheDocument();
     expect(screen.getByText('Newsletters')).toBeInTheDocument();
     expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/category-families'));
   });
 
   it('reassigns a category to another family via the dropdown', async () => {
-    render(<CategoryFamiliesSection />);
+    await renderExpanded();
     await screen.findByText('Newsletters');
 
     // The "Newsletters" category sits in the Other group; move it to fam-1.
@@ -65,7 +103,7 @@ describe('CategoryFamiliesSection', () => {
   });
 
   it('creates a new family', async () => {
-    render(<CategoryFamiliesSection />);
+    await renderExpanded();
     await screen.findByText('🔧 GitHub PR Updates');
 
     await userEvent.type(

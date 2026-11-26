@@ -4,9 +4,10 @@ import { theme } from 'theme/theme';
 import type { PriorityRuleDto, UpsertPriorityRulePayload } from 'types/priority-rules.types';
 
 import { ConfirmModal } from 'components/ConfirmModal';
+import { CollapsibleSettingsSection, SectionHeaderActionButton } from 'components/settings/CollapsibleSettingsSection';
 import { PriorityRuleFormModal } from 'components/settings/priority-rules/PriorityRuleFormModal';
 import { PriorityRulesPanel } from 'components/settings/priority-rules/PriorityRulesPanel';
-import { COLOR_WHITE } from 'constants/colors';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { useNotifications } from 'contexts/NotificationContext';
 import { usePriorityRules } from 'hooks/settings/usePriorityRules';
 
@@ -80,54 +81,26 @@ export const PriorityRulesSection: React.FC = () => {
   }, [deleteRule, deleteTarget, showError, showSuccess, t]);
 
   return (
-    <div
-      style={{
-        marginTop: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
-        borderTop: `1px solid ${theme.colors.border.light}`,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          marginBottom: theme.spacing.md,
-        }}
+    <>
+      <CollapsibleSettingsSection
+        anchorId={SETTINGS_ANCHORS.PRIORITY_RULES}
+        title={t('settings.priorityRules.sectionTitle')}
+        itemCount={loading ? undefined : rules.length}
+        headerAction={<SectionHeaderActionButton label={t('settings.priorityRules.addRule')} onClick={openAdd} />}
       >
-        <h3 style={{ margin: 0, fontSize: theme.typography.fontSize.lg, flex: '1 1 auto' }}>
-          {t('settings.priorityRules.sectionTitle')}
-        </h3>
-        <button
-          type="button"
-          onClick={openAdd}
-          style={{
-            padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-            borderRadius: theme.borderRadius.sm,
-            border: 'none',
-            background: theme.colors.primary.main,
-            color: COLOR_WHITE,
-            cursor: 'pointer',
-            fontSize: theme.typography.fontSize.sm,
-          }}
-        >
-          {t('settings.priorityRules.addRule')}
-        </button>
-      </div>
-
-      {loading ? (
-        <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
-          {t('common.loading')}
-        </p>
-      ) : (
-        <PriorityRulesPanel
-          rules={rules}
-          onToggleEnabled={handleToggle}
-          onEdit={openEdit}
-          onDelete={setDeleteTarget}
-        />
-      )}
+        {loading ? (
+          <p style={{ color: theme.colors.text.secondary, fontSize: theme.typography.fontSize.sm }}>
+            {t('common.loading')}
+          </p>
+        ) : (
+          <PriorityRulesPanel
+            rules={rules}
+            onToggleEnabled={handleToggle}
+            onEdit={openEdit}
+            onDelete={setDeleteTarget}
+          />
+        )}
+      </CollapsibleSettingsSection>
 
       <PriorityRuleFormModal
         open={formOpen}
@@ -148,6 +121,6 @@ export const PriorityRulesSection: React.FC = () => {
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </>
   );
 };

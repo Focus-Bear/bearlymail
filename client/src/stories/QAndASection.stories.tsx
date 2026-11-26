@@ -7,6 +7,7 @@
  */
 import React, { useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import { MemoryRouter } from 'react-router-dom';
 import type { Meta, StoryObj } from '@storybook/react';
 import i18n from 'i18n';
 
@@ -15,6 +16,8 @@ import { QAndASection } from 'components/settings/guide-ai/QAndASection';
 const meta: Meta<typeof QAndASection> = {
   title: 'Settings/GuideAI/QAndASection',
   component: QAndASection,
+  // The section opens itself for `/settings#<id>` links, which needs a router.
+  decorators: [Story => <MemoryRouter><Story /></MemoryRouter>],
   parameters: {
     layout: 'padded',
   },

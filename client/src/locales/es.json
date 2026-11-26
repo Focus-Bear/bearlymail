@@ -6107,7 +6107,8 @@
     },
     "guideAI": {
       "description": "Personalice cómo BearlyMail entiende y procesa sus correos electrónicos",
-      "title": "Guía nuestra IA"
+      "title": "Guía nuestra IA",
+      "sectionNavLabel": "Secciones de Guía nuestra IA"
     },
     "hide": "Esconder",
     "hideNonUrgent": "Ocultar correos electrónicos no urgentes durante (horas):",

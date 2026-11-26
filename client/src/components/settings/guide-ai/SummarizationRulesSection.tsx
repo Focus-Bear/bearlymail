@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { CollapsibleSettingsSection } from 'components/settings/CollapsibleSettingsSection';
 import { SummarizationRuleAddForm } from 'components/settings/guide-ai/SummarizationRuleAddForm';
 import { SummarizationRuleItem } from 'components/settings/guide-ai/SummarizationRuleItem';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
-import { INPUT_WIDTH_PX } from 'constants/numbers';
+import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { STRING_NONE } from 'constants/strings';
 
 interface SummarizationRule {
@@ -87,7 +88,7 @@ const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
   const { t } = useTranslation();
 
   return (
-    <div style={{ padding: theme.spacing.md }}>
+    <>
       <p
         style={{
           color: theme.colors.text.secondary,
@@ -175,7 +176,7 @@ const SummarizationRulesContent: React.FC<SummarizationRulesContentProps> = ({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 };
 
@@ -210,94 +211,45 @@ export const SummarizationRulesSection: React.FC<SummarizationRulesSectionProps>
 }) => {
   const { t } = useTranslation();
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const itemCount = summarizationRules.length;
 
   return (
-    <div
-      id="summarization"
-      style={{
-        marginTop: theme.spacing.lg,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        backgroundColor: theme.colors.background.paper,
-      }}
+    <CollapsibleSettingsSection
+      anchorId={SETTINGS_ANCHORS.SUMMARIZATION_RULES}
+      title={t('settings.summarizationRules')}
+      itemCount={summarizationRules.length}
+      shouldUnmountBodyWhenCollapsed
     >
-      <div
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-          scrollMarginTop: `${INPUT_WIDTH_PX}px`,
-        }}
-      >
-        <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
-        >
-          ▶
-        </span>
-        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{t('settings.summarizationRules')}</span>
-        <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {itemCount}
-        </span>
-      </div>
-
-      {isExpanded && (
-        <SummarizationRulesContent
-          summarizationRules={summarizationRules}
-          newSummarizationWhen={newSummarizationWhen}
-          newSummarizationHow={newSummarizationHow}
-          newFromPatterns={newFromPatterns}
-          newSubjectPatterns={newSubjectPatterns}
-          newPriority={newPriority}
-          editingSummarizationRule={editingSummarizationRule}
-          editSummarizationWhen={editSummarizationWhen}
-          editSummarizationHow={editSummarizationHow}
-          editFromPatterns={editFromPatterns}
-          editSubjectPatterns={editSubjectPatterns}
-          editPriority={editPriority}
-          showAddForm={showAddForm}
-          onShowAddForm={setShowAddForm}
-          onAddSummarizationRule={onAddSummarizationRule}
-          onEditSummarizationRule={onEditSummarizationRule}
-          onSaveSummarizationRule={onSaveSummarizationRule}
-          onDeleteSummarizationRule={onDeleteSummarizationRule}
-          onNewSummarizationWhenChange={onNewSummarizationWhenChange}
-          onNewSummarizationHowChange={onNewSummarizationHowChange}
-          onNewFromPatternsChange={onNewFromPatternsChange}
-          onNewSubjectPatternsChange={onNewSubjectPatternsChange}
-          onNewPriorityChange={onNewPriorityChange}
-          onEditSummarizationWhenChange={onEditSummarizationWhenChange}
-          onEditSummarizationHowChange={onEditSummarizationHowChange}
-          onEditFromPatternsChange={onEditFromPatternsChange}
-          onEditSubjectPatternsChange={onEditSubjectPatternsChange}
-          onEditPriorityChange={onEditPriorityChange}
-          onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
-        />
-      )}
-    </div>
+      <SummarizationRulesContent
+        summarizationRules={summarizationRules}
+        newSummarizationWhen={newSummarizationWhen}
+        newSummarizationHow={newSummarizationHow}
+        newFromPatterns={newFromPatterns}
+        newSubjectPatterns={newSubjectPatterns}
+        newPriority={newPriority}
+        editingSummarizationRule={editingSummarizationRule}
+        editSummarizationWhen={editSummarizationWhen}
+        editSummarizationHow={editSummarizationHow}
+        editFromPatterns={editFromPatterns}
+        editSubjectPatterns={editSubjectPatterns}
+        editPriority={editPriority}
+        showAddForm={showAddForm}
+        onShowAddForm={setShowAddForm}
+        onAddSummarizationRule={onAddSummarizationRule}
+        onEditSummarizationRule={onEditSummarizationRule}
+        onSaveSummarizationRule={onSaveSummarizationRule}
+        onDeleteSummarizationRule={onDeleteSummarizationRule}
+        onNewSummarizationWhenChange={onNewSummarizationWhenChange}
+        onNewSummarizationHowChange={onNewSummarizationHowChange}
+        onNewFromPatternsChange={onNewFromPatternsChange}
+        onNewSubjectPatternsChange={onNewSubjectPatternsChange}
+        onNewPriorityChange={onNewPriorityChange}
+        onEditSummarizationWhenChange={onEditSummarizationWhenChange}
+        onEditSummarizationHowChange={onEditSummarizationHowChange}
+        onEditFromPatternsChange={onEditFromPatternsChange}
+        onEditSubjectPatternsChange={onEditSubjectPatternsChange}
+        onEditPriorityChange={onEditPriorityChange}
+        onEditingSummarizationRuleChange={onEditingSummarizationRuleChange}
+      />
+    </CollapsibleSettingsSection>
   );
 };

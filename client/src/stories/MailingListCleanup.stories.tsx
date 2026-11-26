@@ -14,6 +14,7 @@ import { CleanupConfirmPanel } from 'components/settings/email-delivery/subscrip
 import { CleanupResultPanel } from 'components/settings/email-delivery/subscriptions/CleanupResultPanel';
 import { MailingList } from 'components/settings/email-delivery/subscriptions/mailingLists.api';
 import { MailingListTable } from 'components/settings/email-delivery/subscriptions/MailingListTable';
+import { SubscriptionsSection } from 'components/settings/email-delivery/subscriptions/SubscriptionsSection';
 import { UNSUBSCRIBE_METHODS } from 'constants/unsubscribe';
 
 const noop = () => undefined;
@@ -99,6 +100,9 @@ const meta: Meta = {
 
 export default meta;
 type Story = StoryObj;
+
+/** The accordion as it first appears on Email Delivery; it only fetches when opened. */
+export const CollapsedSection: Story = { render: () => <SubscriptionsSection /> };
 
 export const MailingLists: Story = { render: () => <InteractiveTable /> };
 

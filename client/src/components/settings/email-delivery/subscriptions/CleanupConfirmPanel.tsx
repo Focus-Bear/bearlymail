@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { BlockSenderWarning } from 'components/BlockSenderWarning';
 import { COLOR_TRANSPARENT } from 'constants/colors';
 import { UNSUBSCRIBE_METHODS } from 'constants/unsubscribe';
 
@@ -56,9 +57,13 @@ export const CleanupConfirmPanel: React.FC<CleanupConfirmPanelProps> = ({ select
         )}
         {link.length > 0 && <li>{t('settings.subscriptions.confirm.link', { count: link.length })}</li>}
       </ul>
-      <p style={{ margin: `0 0 ${theme.spacing.md}`, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
+      <p style={{ margin: 0, fontSize: theme.typography.fontSize.sm, color: theme.colors.text.secondary }}>
         {t('settings.subscriptions.confirm.archiveNote')}
       </p>
+      <BlockSenderWarning
+        title={t('settings.subscriptions.confirm.blockWarningTitle', { count: selected.length })}
+        detail={t('settings.subscriptions.confirm.blockWarningDetail')}
+      />
       <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
         <button
           type="button"

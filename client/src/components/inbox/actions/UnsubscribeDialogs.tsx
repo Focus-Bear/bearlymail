@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { BlockSenderWarning } from 'components/BlockSenderWarning';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { EMOJI_LINK } from 'constants/emojis';
 import { UNSUBSCRIBE_METHODS, UNSUBSCRIBE_OUTCOMES, UnsubscribeMethod } from 'constants/unsubscribe';
@@ -20,7 +21,7 @@ const ICON_ERROR = '⚠️';
 /** The dialog for the flow's current step, or null between steps. */
 const StepDialog: React.FC<{ flow: UnsubscribeFlow }> = ({ flow }) => {
   const { t } = useTranslation();
-  const { step, senderName } = flow;
+  const { step, senderName, senderAddress } = flow;
 
     switch (step.kind) {
       case UNSUBSCRIBE_FLOW_STEPS.CONFIRM:
@@ -67,7 +68,13 @@ const StepDialog: React.FC<{ flow: UnsubscribeFlow }> = ({ flow }) => {
                 ? t('inbox.unsubscribeFlow.archiveOfferWithOthers', { sender: senderName, count: step.siblingCount })
                 : t('inbox.unsubscribeFlow.archiveOffer', { sender: senderName })
             }
-            confirmLabel={t('inbox.archive')}
+            notice={
+              <BlockSenderWarning
+                title={t('inbox.unsubscribeFlow.blockWarningTitle', { address: senderAddress })}
+                detail={t('inbox.unsubscribeFlow.blockWarningDetail')}
+              />
+            }
+            confirmLabel={t('inbox.unsubscribeFlow.archiveAndBlock')}
             cancelLabel={t('inbox.unsubscribeFlow.keep')}
             confirmColor={theme.colors.primary.main}
             onConfirm={() => void flow.archiveSender()}

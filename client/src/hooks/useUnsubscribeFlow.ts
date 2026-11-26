@@ -94,6 +94,8 @@ export interface UnsubscribeFlow {
   action: UnsubscribeAction | null;
   step: UnsubscribeFlowStep;
   senderName: string;
+  /** The address a confirmed archive blocks (blocking is per address, not per name). */
+  senderAddress: string;
   start: () => void;
   confirm: () => Promise<void>;
   openFallbackLink: () => void;
@@ -210,5 +212,5 @@ export function useUnsubscribeFlow({ email, onArchiveEmail }: UseUnsubscribeFlow
     }
   }, [email.id, onArchiveEmail]);
 
-  return { action, step, senderName, start, confirm, openFallbackLink, archiveSender, dismiss };
+  return { action, step, senderName, senderAddress: email.from, start, confirm, openFallbackLink, archiveSender, dismiss };
 }

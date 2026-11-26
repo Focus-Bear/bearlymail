@@ -85,4 +85,44 @@ describe('CollapsibleSettingsSection', () => {
 
     expect(screen.getByRole('button', { name: 'Learned priority rules' })).toBeInTheDocument();
   });
+
+  it('opens with the Space key', async () => {
+    renderAt('/settings');
+    const toggle = screen.getByRole('button', { name: /Deterministic category rules/ });
+
+    toggle.focus();
+    await userEvent.keyboard(' ');
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('can start open, unmount its body while collapsed, and wire ids without an anchor', async () => {
+    render(
+      <MemoryRouter>
+        <CollapsibleSettingsSection
+          title="VIP Contacts"
+          headingTag="h4"
+          titleBadges={<span>2 pending</span>}
+          titleAdornment={<button type="button">Help</button>}
+          isInitiallyExpanded
+          shouldUnmountBodyWhenCollapsed
+        >
+          <p>VIP list</p>
+        </CollapsibleSettingsSection>
+      </MemoryRouter>
+    );
+    const toggle = screen.getByRole('button', { name: 'VIP Contacts 2 pending' });
+
+    expect(screen.getByRole('heading', { level: 4 })).toContainElement(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(toggle.getAttribute('aria-controls') ?? '')).toContainElement(
+      screen.getByText('VIP list')
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Help' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(toggle);
+    expect(screen.queryByText('VIP list')).toBeNull();
+  });
 });

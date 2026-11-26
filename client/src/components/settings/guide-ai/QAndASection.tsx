@@ -4,6 +4,7 @@ import axios from 'axios';
 import { theme } from 'theme/theme';
 
 import { InfoTooltip } from 'components/InfoTooltip';
+import { CollapsibleSettingsSection } from 'components/settings/CollapsibleSettingsSection';
 import { API_URL } from 'config/api';
 import { COLOR_BG_WARNING_AMBER, COLOR_NAMED_WHITE, COLOR_TRANSPARENT, COLOR_WARNING_TEXT } from 'constants/colors';
 import { OPACITY_DISABLED, OPACITY_FULL } from 'constants/numbers';
@@ -17,7 +18,6 @@ import {
   STRING_NONE,
 } from 'constants/strings';
 import { useNotifications } from 'contexts/NotificationContext';
-import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 interface UserContext {
   contextId: string;
@@ -602,61 +602,14 @@ const ApprovedTab: React.FC<ApprovedTabProps> = ({
   );
 };
 
-// ─── QAndASectionHeader ───────────────────────────────────────────────────────
-
-interface QAndASectionHeaderProps {
-  isExpanded: boolean;
-  totalCount: number;
-  pendingCount: number;
-  tooltipContent?: string;
-  onToggle: () => void;
-}
-
-const QAndASectionHeader: React.FC<QAndASectionHeaderProps> = ({
-  isExpanded,
-  totalCount,
-  pendingCount,
-  tooltipContent,
-  onToggle,
-}) => {
+const PendingCountBadge: React.FC<{ pendingCount: number }> = ({ pendingCount }) => {
   const { t } = useTranslation();
   return (
-    <div
-      onClick={onToggle}
-      style={{
-        fontSize: theme.typography.fontSize.lg,
-        color: theme.colors.text.primary,
-        padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: theme.spacing.sm,
-        cursor: 'pointer',
-        backgroundColor: theme.colors.background.paper,
-        borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-        borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-        transition: theme.transitions.fast,
-      }}
+    <span
+      style={{ ...badgeStyle, backgroundColor: COLOR_BG_WARNING_AMBER, color: COLOR_WARNING_TEXT, whiteSpace: 'nowrap' }}
     >
-      <span
-        style={{
-          transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-          transition: theme.transitions.fast,
-          fontSize: theme.typography.fontSize.base,
-          color: theme.colors.text.secondary,
-        }}
-      >
-        ▶
-      </span>
-      <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{t('settings.contextSections.qanda')}</span>
-      <span style={badgeStyle}>{totalCount}</span>
-      {pendingCount > 0 && (
-        <span style={{ ...badgeStyle, backgroundColor: COLOR_BG_WARNING_AMBER, color: COLOR_WARNING_TEXT }}>
-          {t('settings.context.pendingCount', { count: pendingCount })}
-        </span>
-      )}
-      {tooltipContent && <InfoTooltip content={tooltipContent} />}
-    </div>
+      {t('settings.context.pendingCount', { count: pendingCount })}
+    </span>
   );
 };
 
@@ -803,8 +756,7 @@ export const QAndASection: React.FC<QAndASectionProps> = ({
   isInitiallyExpanded = false,
   anchorId,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(Boolean(isInitiallyExpanded));
-  const sectionRef = useExpandWhenLinked(setIsExpanded);
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('pending');
 
   const qaContexts = contexts.filter(ctx => ctx.contextKey === CONTEXT_KEY_Q_AND_A);
@@ -819,47 +771,39 @@ export const QAndASection: React.FC<QAndASectionProps> = ({
   );
 
   return (
-    <div
-      id={anchorId}
-      ref={sectionRef}
-      style={{
-        marginBottom: theme.spacing.lg,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        backgroundColor: theme.colors.background.paper,
-      }}
+    <CollapsibleSettingsSection
+      anchorId={anchorId}
+      title={t('settings.contextSections.qanda')}
+      itemCount={qaContexts.length}
+      titleBadges={pendingContexts.length > 0 ? <PendingCountBadge pendingCount={pendingContexts.length} /> : undefined}
+      titleAdornment={tooltipContent ? <InfoTooltip content={tooltipContent} /> : undefined}
+      headingTag="h4"
+      isInitiallyExpanded={isInitiallyExpanded}
+      shouldUnmountBodyWhenCollapsed
+      hasBodyPadding={false}
     >
-      <QAndASectionHeader
-        isExpanded={isExpanded}
-        totalCount={qaContexts.length}
-        pendingCount={pendingContexts.length}
-        tooltipContent={tooltipContent}
-        onToggle={() => setIsExpanded(!isExpanded)}
+      <QAndASectionBody
+        activeTab={activeTab}
+        pendingContexts={pendingContexts}
+        approvedContexts={approvedContexts}
+        isApprovingAll={isApprovingAll}
+        onTabChange={setActiveTab}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        onEdit={handleEditAndApprove}
+        onApproveAll={handleApproveAll}
+        addingContextType={addingContextType}
+        editingContextId={editingContextId}
+        editContextValue={editContextValue}
+        newContextValue={newContextValue}
+        onAddContext={onAddContext}
+        onUpdateContext={onUpdateContext}
+        onDeleteContext={onDeleteContext}
+        onNewContextValueChange={onNewContextValueChange}
+        onAddingContextTypeChange={onAddingContextTypeChange}
+        onEditingContextIdChange={onEditingContextIdChange}
+        onEditContextValueChange={onEditContextValueChange}
       />
-      {isExpanded && (
-        <QAndASectionBody
-          activeTab={activeTab}
-          pendingContexts={pendingContexts}
-          approvedContexts={approvedContexts}
-          isApprovingAll={isApprovingAll}
-          onTabChange={setActiveTab}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          onEdit={handleEditAndApprove}
-          onApproveAll={handleApproveAll}
-          addingContextType={addingContextType}
-          editingContextId={editingContextId}
-          editContextValue={editContextValue}
-          newContextValue={newContextValue}
-          onAddContext={onAddContext}
-          onUpdateContext={onUpdateContext}
-          onDeleteContext={onDeleteContext}
-          onNewContextValueChange={onNewContextValueChange}
-          onAddingContextTypeChange={onAddingContextTypeChange}
-          onEditingContextIdChange={onEditingContextIdChange}
-          onEditContextValueChange={onEditContextValueChange}
-        />
-      )}
-    </div>
+    </CollapsibleSettingsSection>
   );
 };

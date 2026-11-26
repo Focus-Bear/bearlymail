@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 import { captureEvent } from 'utils/posthog';
 
+import { CollapsibleSettingsSection } from 'components/settings/CollapsibleSettingsSection';
 import { ToneRuleItem } from 'components/settings/guide-ai/ToneRuleItem';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { SETTINGS_ANCHORS } from 'constants/settingsAnchors';
 import { KEY_ENTER, STRING_NONE } from 'constants/strings';
-import { useExpandWhenLinked } from 'hooks/useOpenForLinkedSection';
 
 interface ToneSettingsSectionProps {
   toneRules: string[];
@@ -38,7 +38,7 @@ const ToneRulesContent: React.FC<ToneRulesContentProps> = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ padding: theme.spacing.md }}>
+    <>
       <p
         style={{
           color: theme.colors.text.secondary,
@@ -95,7 +95,7 @@ const ToneRulesContent: React.FC<ToneRulesContentProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -108,72 +108,21 @@ export const ToneSettingsSection: React.FC<ToneSettingsSectionProps> = ({
   onNewToneRuleChange,
 }) => {
   const { t } = useTranslation();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const sectionRef = useExpandWhenLinked(setIsExpanded);
-  const itemCount = toneRules.length;
-
   return (
-    <div
-      id={SETTINGS_ANCHORS.TONE_SETTINGS}
-      ref={sectionRef}
-      style={{
-        marginBottom: theme.spacing.lg,
-        border: `1px solid ${theme.colors.border.light}`,
-        borderRadius: theme.borderRadius.md,
-        backgroundColor: theme.colors.background.paper,
-      }}
+    <CollapsibleSettingsSection
+      anchorId={SETTINGS_ANCHORS.TONE_SETTINGS}
+      title={t('settings.howIWrite')}
+      itemCount={toneRules.length}
+      shouldUnmountBodyWhenCollapsed
     >
-      <div
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          fontSize: theme.typography.fontSize.lg,
-          color: theme.colors.text.primary,
-          padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-          cursor: 'pointer',
-          backgroundColor: theme.colors.background.paper,
-          borderBottom: isExpanded ? `1px solid ${theme.colors.border.light}` : 'none',
-          borderRadius: isExpanded ? `${theme.borderRadius.md} ${theme.borderRadius.md} 0 0` : theme.borderRadius.md,
-          transition: theme.transitions.fast,
-        }}
-      >
-        <span
-          style={{
-            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: theme.transitions.fast,
-            fontSize: theme.typography.fontSize.base,
-            color: theme.colors.text.secondary,
-          }}
-        >
-          ▶
-        </span>
-        <span style={{ fontWeight: theme.typography.fontWeight.semibold }}>{t('settings.howIWrite')}</span>
-        <span
-          style={{
-            backgroundColor: theme.colors.greyscale[300],
-            color: theme.colors.text.secondary,
-            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-            borderRadius: theme.borderRadius.full,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.medium,
-          }}
-        >
-          {itemCount}
-        </span>
-      </div>
-
-      {isExpanded && (
-        <ToneRulesContent
-          toneRules={toneRules}
-          newToneRule={newToneRule}
-          onAddToneRule={onAddToneRule}
-          onRemoveToneRule={onRemoveToneRule}
-          onEditToneRule={onEditToneRule}
-          onNewToneRuleChange={onNewToneRuleChange}
-        />
-      )}
-    </div>
+      <ToneRulesContent
+        toneRules={toneRules}
+        newToneRule={newToneRule}
+        onAddToneRule={onAddToneRule}
+        onRemoveToneRule={onRemoveToneRule}
+        onEditToneRule={onEditToneRule}
+        onNewToneRuleChange={onNewToneRuleChange}
+      />
+    </CollapsibleSettingsSection>
   );
 };

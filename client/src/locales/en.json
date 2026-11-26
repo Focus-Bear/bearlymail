@@ -1749,7 +1749,7 @@
       }
     },
     "subscriptions": {
-      "title": "Subscriptions",
+      "title": "Newsletter subscriptions",
       "description": "Newsletters and mailing lists that emailed you in the last 90 days, busiest first. Tick the ones you don't want: BearlyMail unsubscribes you, archives their emails in Triage, and auto-archives anything they still send.",
       "loading": "Finding your subscriptions…",
       "loadError": "Couldn't load your subscriptions.",
@@ -3361,7 +3361,7 @@
             "title": "Email Delivery",
             "item0": "Email Accounts: connect Gmail, Outlook / Office 365, Zoho or any IMAP account. Reconnect an account here if it stops syncing.",
             "item1": "Email Batching: how often email arrives (Calm, Balanced or Always on), or your own days and times.",
-            "item2": "Subscriptions: unsubscribe from several mailing lists at once.",
+            "item2": "Newsletter subscriptions: unsubscribe from several mailing lists at once.",
             "item3": "Blocked Senders: unblock people, and block keywords in subject lines.",
             "item4": "Email Signature and Open tracking."
           },
@@ -4007,8 +4007,8 @@
           },
           "section3": {
             "title": "Clean up several at once",
-            "content": "Subscriptions lists the mailing lists that emailed you in the last 90 days, busiest first.",
-            "item0": "Go to Settings → Email Delivery → Subscriptions and click the heading to open the list.",
+            "content": "Newsletter subscriptions lists the mailing lists that emailed you in the last 90 days, busiest first.",
+            "item0": "Go to Settings → Email Delivery → Newsletter subscriptions and click the heading to open the list.",
             "item1": "Tick the ones you don't want and click Unsubscribe & archive.",
             "item2": "Check what will happen, then click Unsubscribe & archive to confirm.",
             "item3": "Their emails in Triage are archived, and the senders are added to Blocked Senders. Some need you to finish on their website; you get the links at the end."

@@ -2068,7 +2068,7 @@
             "title": "Entrega de correo electrónico",
             "item0": "Cuentas de Correo: conecta Gmail, Outlook / Office 365, Zoho o cualquier cuenta IMAP. Vuelve a conectar una cuenta aquí si deja de sincronizarse.",
             "item1": "Agrupación de correos electrónicos: con qué frecuencia llega el correo (Calma, Equilibrado o Siempre activo), o tus propios días y horas.",
-            "item2": "Suscripciones: date de baja de varias listas de correo a la vez.",
+            "item2": "Suscripciones a boletines: date de baja de varias listas de correo a la vez.",
             "item3": "Remitentes bloqueados: desbloquea personas y bloquea palabras clave en el asunto.",
             "item4": "Firma de Correo Electrónico y Seguimiento de aperturas."
           },
@@ -2714,8 +2714,8 @@
           },
           "section3": {
             "title": "Limpiar varias a la vez",
-            "content": "Suscripciones muestra las listas de correo que te escribieron en los últimos 90 días, empezando por las más activas.",
-            "item0": "Ve a Ajustes → Entrega de correo electrónico → Suscripciones y haz clic en el título para abrir la lista.",
+            "content": "Suscripciones a boletines muestra las listas de correo que te escribieron en los últimos 90 días, empezando por las más activas.",
+            "item0": "Ve a Ajustes → Entrega de correo electrónico → Suscripciones a boletines y haz clic en el título para abrir la lista.",
             "item1": "Marca las que no quieras y haz clic en Cancelar suscripción y archivar.",
             "item2": "Revisa lo que va a pasar y haz clic en Cancelar suscripción y archivar para confirmar.",
             "item3": "Sus correos en Clasificación se archivan y los remitentes se añaden a Remitentes bloqueados. Algunas requieren que termines en su sitio web; al final recibes los enlaces."
@@ -5586,7 +5586,7 @@
       "unblock": "Desbloquear"
     },
     "subscriptions": {
-      "title": "Suscripciones",
+      "title": "Suscripciones a boletines",
       "description": "Boletines y listas de correo que te escribieron en los últimos 90 días, los más activos primero. Marca los que no quieras: BearlyMail cancela tu suscripción, archiva sus correos en Triage y archiva automáticamente lo que sigan enviando.",
       "loading": "Buscando tus suscripciones…",
       "loadError": "No se pudieron cargar tus suscripciones.",

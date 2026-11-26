@@ -115,6 +115,23 @@ export function sameNotificationSubtypes(
 }
 
 /**
+ * The members of `candidatePins` that `existingPins` does not already match.
+ * Refinement-aware (a coarse `github:pr` pin covers `github:pr:merged:human`),
+ * and an unpinned rule covers every sub-stream, so it leaves nothing uncovered.
+ */
+export function subtypesNotCoveredBy(
+  existingPins: readonly string[],
+  candidatePins: readonly string[],
+): string[] {
+  if (existingPins.length === 0) {
+    return [];
+  }
+  return candidatePins.filter(
+    (subtype) => !notificationSubtypeMatchesAny(existingPins, subtype),
+  );
+}
+
+/**
  * The canonical v3 field(s) for a pinned subtype list: a single subtype is
  * stored in `notificationSubtype` (so existing readers keep working), two or
  * more in `notificationSubtypeAny`. Empty when there is nothing to pin.

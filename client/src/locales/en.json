@@ -1213,6 +1213,7 @@
       "bodyNotContainsPlaceholder": "unsubscribe link\ndigest summary",
       "bodyNotContainsHelp": "Optional. The rule fails to match if ANY of these phrases appears in the body. Useful when the same sender produces both wanted and unwanted notifications.",
       "bodyPhraseSeparator": " · ",
+      "notificationSubtypeField": "Notification type is any of",
       "githubStateField": "GitHub PR/issue state is any of",
       "githubProjectStatusField": "GitHub project board status is any of",
       "githubAuthorKindField": "GitHub PR/issue author is a",

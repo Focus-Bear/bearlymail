@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CategoryRuleDto } from 'types/category-rules.types';
+import { specStructuralConditions } from 'types/category-rules.types';
 
 import { COMPOSITE_RULE_FORM_MODE_ADD, COMPOSITE_RULE_FORM_MODE_EDIT } from 'constants/category-rules';
 import type { CreateCompositePayload, PatchCategoryRulePayload } from 'hooks/settings/useCategoryRules';
@@ -54,6 +55,9 @@ export function useCategoryRuleCompositeFormSubmit({
           categoryName: payload.categoryName,
           categoryId: payload.categoryId,
           compositeSpec: {
+            // The form edits phrases only; carry the rule's pins through or the
+            // server would store a phrase-only (much broader) rule.
+            ...(editingRule.compositeSpec && specStructuralConditions(editingRule.compositeSpec)),
             senderMatchesAny: payload.senderMatchesAny,
             subjectContainsAny: payload.subjectContainsAny,
             bodyContainsAny: payload.bodyContainsAny,

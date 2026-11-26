@@ -850,6 +850,106 @@ describe("CategoryRulesService", () => {
       ).not.toHaveBeenCalled();
       expect(result).toEqual(created);
     });
+
+    describe("duplicate structural candidates", () => {
+      const githubCategoryId = "cat-gh";
+      const githubSeed = {
+        from: "notifications@github.com",
+        subject: "[owner/repo] Add feature (#42)",
+        bodyTextForMatch: "A user commented on the pull request",
+        notificationSubtype: "github:pr",
+      };
+      const coveringSpec = {
+        v: 3 as const,
+        fromMatchesAny: ["Notifications@GitHub.com"],
+        subjectContainsAny: [],
+        bodyContainsAny: [],
+        bodyNotContainsAny: [...CATEGORY_RULE_COMPOSITE.QA_TEMPLATE_MARKERS],
+        notificationSubtypeAny: ["github:issue", "github:pr"],
+      };
+      const coveringRule = (isEnabled: boolean) => ({
+        id: "existing-structural",
+        ruleKind: "composite",
+        categoryName: "GitHub PRs",
+        categoryId: githubCategoryId,
+        isEnabled,
+        createdAt: new Date("2026-11-01"),
+        compositeSpec: coveringSpec,
+      });
+
+      beforeEach(() => {
+        llmCategoriesService.suggestRulesFromEmailSamples.mockResolvedValue({
+          fromMatchesAny: ["notifications@github.com"],
+          subjectContainsAny: [],
+          bodyContainsAny: [],
+          subjectNotContainsAny: [],
+          bodyNotContainsAny: [],
+        });
+        emailRepo.find.mockResolvedValue([
+          {
+            from: "notifications@github.com",
+            subject: githubSeed.subject,
+            body: githubSeed.bodyTextForMatch,
+            htmlBody:
+              '<a href="https://github.com/owner/repo/pull/42">View it on GitHub</a>',
+          },
+        ]);
+        userContextRepo.find.mockResolvedValue([
+          {
+            contextId: githubCategoryId,
+            contextValue: "GitHub PRs",
+            contextKey: ContextKey.EMAIL_CATEGORY,
+          },
+        ]);
+      });
+
+      it("skips a candidate an existing same-category rule already covers, before any review", async () => {
+        const existing = coveringRule(true);
+        repo.find.mockResolvedValue([existing]);
+
+        const result = await service.generateCompositeRuleFromEmail(
+          userId,
+          githubSeed,
+          "GitHub PRs",
+        );
+
+        expect(result).toBe(existing);
+        expect(repo.create).not.toHaveBeenCalled();
+        expect(repo.save).not.toHaveBeenCalled();
+        expect(sanityService.checkRule).not.toHaveBeenCalled();
+        expect(llmCategoriesService.assessRuleAddsValue).not.toHaveBeenCalled();
+      });
+
+      it("does not recreate a covering rule the user disabled", async () => {
+        const disabled = coveringRule(false);
+        repo.find.mockResolvedValue([disabled]);
+
+        const result = await service.generateCompositeRuleFromEmail(
+          userId,
+          githubSeed,
+          "GitHub PRs",
+        );
+
+        expect(result).toBe(disabled);
+        expect(disabled.isEnabled).toBe(false);
+        expect(repo.create).not.toHaveBeenCalled();
+      });
+
+      it("folds into a covering rule written by a concurrent job while the gates ran", async () => {
+        const concurrent = coveringRule(true);
+        repo.find.mockResolvedValueOnce([]).mockResolvedValue([concurrent]);
+
+        const result = await service.generateCompositeRuleFromEmail(
+          userId,
+          githubSeed,
+          "GitHub PRs",
+        );
+
+        expect(sanityService.checkRule).toHaveBeenCalled();
+        expect(result).toBe(concurrent);
+        expect(repo.create).not.toHaveBeenCalled();
+      });
+    });
   });
 
   // ---------------------------------------------------------------------------

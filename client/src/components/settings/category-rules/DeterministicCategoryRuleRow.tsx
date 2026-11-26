@@ -7,6 +7,7 @@ import {
   formatGithubProjectStatus,
   specBodyNotContains,
   specGithubConditions,
+  specNotificationSubtypes,
   specSenders,
   specSubjectNotContains,
   specSubjects,
@@ -112,6 +113,7 @@ const CompositeSpecSummary: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = 
   const subjects = specSubjects(rule.compositeSpec);
   const subjectNot = specSubjectNotContains(rule.compositeSpec);
   const bodyNot = specBodyNotContains(rule.compositeSpec);
+  const subtypes = specNotificationSubtypes(rule.compositeSpec);
   const separator = t('settings.deterministicCategoryRules.bodyPhraseSeparator');
   return (
     <>
@@ -133,6 +135,11 @@ const CompositeSpecSummary: React.FC<{ rule: CategoryRuleDto; t: TFunction }> = 
       {bodyNot.length > 0 ? (
         <div style={mono}>
           {t('settings.deterministicCategoryRules.bodyNotContainsField')}: {bodyNot.join(separator)}
+        </div>
+      ) : null}
+      {subtypes.length > 0 ? (
+        <div style={mono}>
+          {t('settings.deterministicCategoryRules.notificationSubtypeField')}: {subtypes.join(separator)}
         </div>
       ) : null}
       <GithubConditionsSummary spec={rule.compositeSpec} t={t} />

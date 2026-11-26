@@ -188,3 +188,49 @@ export const MultipleRulesPerCategory: Story = {
     </Wrapper>
   ),
 };
+
+const STRUCTURAL_RULES: CategoryRuleDto[] = [
+  {
+    id: 's1',
+    categoryName: '🐛 Human GitHub issue status updates',
+    categoryId: 'cat-human-issues',
+    ruleKind: 'composite',
+    ruleType: null,
+    pattern: '',
+    subjectPrefix: null,
+    compositeSpec: {
+      v: 3,
+      fromMatchesAny: ['notifications@github.com'],
+      subjectContainsAny: [],
+      bodyContainsAny: [],
+      bodyNotContainsAny: ['Test Environment', 'Test Objective', 'Preconditions'],
+      notificationSubtypeAny: ['github:issue:closed:human', 'github:issue:reopened:human'],
+    },
+    sanityCheck: {
+      verdict: 'accept',
+      confidence: 0.95,
+      reason: 'Pins human issue closures and reopenings, which match this category and no other.',
+      model: 'gemini-3.6-flash',
+      checkedAt: '2026-11-22T00:00:00.000Z',
+      revised: false,
+    },
+    isEnabled: true,
+    hitCount: 35,
+    createdAt: '2026-11-20T00:00:00.000Z',
+    updatedAt: '2026-11-22T00:00:00.000Z',
+  },
+];
+
+/** A structural rule: the notification sub-streams are what separate it from the sender's other mail. */
+export const StructuralRule: Story = {
+  render: () => (
+    <Wrapper>
+      <DeterministicCategoryRulesPanel
+        rules={STRUCTURAL_RULES}
+        onToggleEnabled={noop}
+        onDelete={noop}
+        onEditComposite={noop}
+      />
+    </Wrapper>
+  ),
+};

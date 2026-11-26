@@ -12,6 +12,7 @@ import {
   CompositeCategoryRuleSpecV2,
   CompositeCategoryRuleSpecV3,
 } from "../database/entities/category-rule.entity";
+import { notificationSubtypeDepth } from "../utils/notification-subtype.util";
 import type {
   CompositeRuleEvaluationDetail,
   EmailMetadata,
@@ -22,8 +23,12 @@ import {
   specMatchesGithubConditions,
 } from "./category-rules-github-conditions.helper";
 import {
+  notificationSubtypeDepthOf,
+  notificationSubtypeFields,
+  notificationSubtypesOf,
   sameNotificationSubtypes,
   specMatchesNotificationSubtype,
+  subtypesNotCoveredBy,
 } from "./category-rules-notification-subtype.helper";
 
 export interface EmailHashes {
@@ -160,6 +165,47 @@ export function specToV2(
   };
 }
 
+function toCiSet(values: string[] | undefined): Set<string> {
+  const set = new Set<string>();
+  for (const value of values ?? []) {
+    const key = value.trim().toLowerCase();
+    if (key) set.add(key);
+  }
+  return set;
+}
+
+function setsEqual(first: Set<string>, second: Set<string>): boolean {
+  if (first.size !== second.size) return false;
+  for (const value of first) {
+    if (!second.has(value)) return false;
+  }
+  return true;
+}
+
+function sameCiSet(
+  first: string[] | undefined,
+  second: string[] | undefined,
+): boolean {
+  return setsEqual(toCiSet(first), toCiSet(second));
+}
+
+/** Same senders, subject phrases and body phrases (case-insensitive sets). */
+function samePositivePhrases(
+  first: CompositeCategoryRuleSpecV2,
+  second: CompositeCategoryRuleSpecV2,
+): boolean {
+  return (
+    sameCiSet(first.senderMatchesAny, second.senderMatchesAny) &&
+    sameCiSet(first.subjectContainsAny, second.subjectContainsAny) &&
+    sameCiSet(first.bodyContainsAny, second.bodyContainsAny)
+  );
+}
+
+/**
+ * True when two specs are the same rule: every condition equal after
+ * normalising case, whitespace, ordering and repeats. Matching is
+ * case-insensitive, so `Merged #` and `merged #` are one condition.
+ */
 export function compositeAutoSpecsMatch(
   first: CompositeCategoryRuleSpec,
   second: CompositeCategoryRuleSpec,
@@ -175,24 +221,10 @@ export function compositeAutoSpecsMatch(
   }
   const v2First = specToV2(first);
   const v2Second = specToV2(second);
-  // Unit separator avoids false positives when joining multi-element arrays.
-  const UNIT_SEP = "";
-  const packStrings = (values: string[] | undefined) =>
-    [...(values ?? [])]
-      .map((item) => item.trim())
-      .sort()
-      .join(UNIT_SEP);
   return (
-    packStrings(v2First.senderMatchesAny) ===
-      packStrings(v2Second.senderMatchesAny) &&
-    packStrings(v2First.subjectContainsAny) ===
-      packStrings(v2Second.subjectContainsAny) &&
-    packStrings(v2First.bodyContainsAny) ===
-      packStrings(v2Second.bodyContainsAny) &&
-    packStrings(v2First.subjectNotContainsAny) ===
-      packStrings(v2Second.subjectNotContainsAny) &&
-    packStrings(v2First.bodyNotContainsAny) ===
-      packStrings(v2Second.bodyNotContainsAny)
+    samePositivePhrases(v2First, v2Second) &&
+    sameCiSet(v2First.subjectNotContainsAny, v2Second.subjectNotContainsAny) &&
+    sameCiSet(v2First.bodyNotContainsAny, v2Second.bodyNotContainsAny)
   );
 }
 
@@ -210,17 +242,9 @@ export function senderAndSubjectMatch(
 ): boolean {
   const v2First = specToV2(first);
   const v2Second = specToV2(second);
-  const UNIT_SEP = "";
-  const packStringsCi = (values: string[] | undefined) =>
-    [...(values ?? [])]
-      .map((item) => item.trim().toLowerCase())
-      .sort()
-      .join(UNIT_SEP);
   return (
-    packStringsCi(v2First.senderMatchesAny) ===
-      packStringsCi(v2Second.senderMatchesAny) &&
-    packStringsCi(v2First.subjectContainsAny) ===
-      packStringsCi(v2Second.subjectContainsAny)
+    sameCiSet(v2First.senderMatchesAny, v2Second.senderMatchesAny) &&
+    sameCiSet(v2First.subjectContainsAny, v2Second.subjectContainsAny)
   );
 }
 
@@ -329,29 +353,44 @@ export function mergeBodyPhrasesIntoSibling(
   };
 }
 
-function toCiSet(values: string[] | undefined): Set<string> {
-  const set = new Set<string>();
-  for (const value of values ?? []) {
-    const key = value.trim().toLowerCase();
-    if (key) set.add(key);
-  }
-  return set;
-}
-
-function setsEqual(first: Set<string>, second: Set<string>): boolean {
-  if (first.size !== second.size) return false;
-  for (const value of first) {
-    if (!second.has(value)) return false;
-  }
-  return true;
-}
-
 /** True when every element of `subset` is present in `superset`. */
 function isSubsetOf(subset: Set<string>, superset: Set<string>): boolean {
   for (const value of subset) {
     if (!superset.has(value)) return false;
   }
   return true;
+}
+
+/**
+ * True when the two specs differ ONLY in their sub-stream pins and those pins
+ * can be unioned without changing what either rule means. Same senders and
+ * phrases make "rule A OR rule B" exactly one rule pinned to A's sub-streams
+ * plus B's. This is the case the generator kept missing: a structural rule
+ * pinned to `[closed:human]` and a later one pinned to
+ * `[closed:human, reopened:human]` for the same category are one rule, not
+ * two siblings.
+ *
+ * Both sides must be pinned (adding a pin to an unpinned rule would narrow
+ * it), and every sub-stream the candidate adds must be at least as deep as the
+ * existing rule's shallowest pin, so the merged rule never loses specificity
+ * against another category's rule at match time.
+ */
+function subtypePinsCanUnion(
+  existing: CompositeCategoryRuleSpec,
+  candidate: CompositeCategoryRuleSpec,
+): boolean {
+  const existingPins = notificationSubtypesOf(existing);
+  const candidatePins = notificationSubtypesOf(candidate);
+  if (existingPins.length === 0 || candidatePins.length === 0) {
+    return false;
+  }
+  if (!samePositivePhrases(specToV2(existing), specToV2(candidate))) {
+    return false;
+  }
+  const existingDepth = notificationSubtypeDepthOf(existing);
+  return subtypesNotCoveredBy(existingPins, candidatePins).every(
+    (subtype) => notificationSubtypeDepth(subtype) >= existingDepth,
+  );
 }
 
 /**
@@ -362,9 +401,10 @@ function isSubsetOf(subset: Set<string>, superset: Set<string>): boolean {
  * conditions are a subset of one another, which is how divergent-exclusion
  * siblings (same `*@github.com`, different Pass/Fail exclusion lists) accrue.
  *
- * Rules pinned to DIFFERENT notification-subtype sets are hard structural
- * separators (e.g. GitHub PR vs issue, bot vs human) and never reconcile — both
- * sides must pin the same set (or both have none). Overlap is then either:
+ * Rules pinned to different GitHub facts never reconcile. Rules pinned to
+ * different notification-subtype sets reconcile only when nothing else about
+ * their positive conditions differs (see {@link subtypePinsCanUnion}). With the
+ * same pins, overlap is either:
  *   - the same sender set (the classic divergent-exclusion sibling case), OR
  *   - one rule's positive conditions (senders AND subjects AND bodies) are a
  *     subset of the other's (the broader rule already covers the narrower one).
@@ -373,11 +413,11 @@ export function compositeRulesShouldReconcile(
   existing: CompositeCategoryRuleSpec,
   candidate: CompositeCategoryRuleSpec,
 ): boolean {
-  if (
-    !sameNotificationSubtypes(existing, candidate) ||
-    !sameGithubConditions(existing, candidate)
-  ) {
+  if (!sameGithubConditions(existing, candidate)) {
     return false;
+  }
+  if (!sameNotificationSubtypes(existing, candidate)) {
+    return subtypePinsCanUnion(existing, candidate);
   }
   const existingV2 = specToV2(existing);
   const candidateV2 = specToV2(candidate);
@@ -405,21 +445,34 @@ export function compositeRulesShouldReconcile(
   return existingSubsetOfCandidate || candidateSubsetOfExisting;
 }
 
+/** `existing`'s v3 extras with its sub-stream pins replaced by `subtypes`. */
+function v3ExtrasWithSubtypes(
+  existing: CompositeCategoryRuleSpec,
+  subtypes: string[],
+): Partial<CompositeCategoryRuleSpecV3> {
+  const extras = copyV3ExtraFields(existing);
+  delete extras.notificationSubtype;
+  delete extras.notificationSubtypeAny;
+  return { ...extras, ...notificationSubtypeFields(subtypes) };
+}
+
 /**
  * Reconciles two overlapping same-category specs into ONE v3 spec that carries
  * the case-insensitive UNION of every positive condition (senders, subjects,
- * bodies — the broader positive set) AND the UNION of both sides' exclusions
+ * bodies, and the sub-stream pins the existing rule does not already cover —
+ * the broader positive set) AND the UNION of both sides' exclusions
  * (`subjectNotContainsAny` / `bodyNotContainsAny`). Unioning exclusions is the
  * whole point: it is how a broad sibling that was MISSING a newer sibling's
  * exclusion (e.g. the QA-comment exclusion) inherits it, so the merged rule
  * stops mis-filing the excluded mail.
  *
- * The `existing` rule's v3 extras (read status, attachment, subtype, …) are
- * preserved — callers reconcile INTO the existing row so its id/hit-count and
- * structural constraints survive. Returns the `existing` spec reference
- * unchanged when `candidate` adds nothing new (callers can skip the save), or
- * `null` when the union would exceed a phrase cap (caller should fall back to
- * keeping the rules separate rather than silently dropping phrases).
+ * The `existing` rule's other v3 extras (read status, attachment, GitHub facts,
+ * …) are preserved — callers reconcile INTO the existing row so its
+ * id/hit-count and structural constraints survive. Returns the `existing` spec
+ * reference unchanged when `candidate` adds nothing new (callers can skip the
+ * save, and the generator treats it as a duplicate), or `null` when the union
+ * would exceed a cap (caller should fall back to keeping the rules separate
+ * rather than silently dropping conditions).
  */
 export function reconcileCompositeSpecs(
   existing: CompositeCategoryRuleSpec,
@@ -448,23 +501,31 @@ export function reconcileCompositeSpecs(
     existingV2.bodyNotContainsAny,
     candidateV2.bodyNotContainsAny,
   );
+  const existingPins = notificationSubtypesOf(existing);
+  const addedPins = subtypesNotCoveredBy(
+    existingPins,
+    notificationSubtypesOf(candidate),
+  );
 
   if (
     !senders.addedAny &&
     !subjects.addedAny &&
     !bodies.addedAny &&
     !subjectNot.addedAny &&
-    !bodyNot.addedAny
+    !bodyNot.addedAny &&
+    addedPins.length === 0
   ) {
     return existing;
   }
+  const mergedPins = [...existingPins, ...addedPins];
   if (
     senders.merged.length > CATEGORY_RULE_COMPOSITE.MAX_SENDERS ||
     subjects.merged.length > CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_PHRASES ||
     bodies.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_PHRASES ||
     subjectNot.merged.length >
       CATEGORY_RULE_COMPOSITE.MAX_SUBJECT_NOT_PHRASES ||
-    bodyNot.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES
+    bodyNot.merged.length > CATEGORY_RULE_COMPOSITE.MAX_BODY_NOT_PHRASES ||
+    mergedPins.length > CATEGORY_RULE_COMPOSITE.MAX_NOTIFICATION_SUBTYPES
   ) {
     return null;
   }
@@ -479,7 +540,7 @@ export function reconcileCompositeSpecs(
     bodyContainsAny: bodies.merged,
     ...(mergedSubjectNot && { subjectNotContainsAny: mergedSubjectNot }),
     ...(mergedBodyNot && { bodyNotContainsAny: mergedBodyNot }),
-    ...copyV3ExtraFields(existing),
+    ...v3ExtrasWithSubtypes(existing, mergedPins),
   };
 }
 

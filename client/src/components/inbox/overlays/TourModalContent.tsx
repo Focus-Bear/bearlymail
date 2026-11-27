@@ -6,7 +6,8 @@ import { TourHoldToSkipButton } from 'components/inbox/overlays/TourHoldToSkipBu
 import { COLOR_NAMED_WHITE, COLOR_TRANSPARENT } from 'constants/colors';
 import { MS_PER_SECOND, OPACITY_FULL, OPACITY_HALF } from 'constants/numbers';
 import { STRING_NONE } from 'constants/strings';
-import { TOUR_SKIP_HOLD_DURATION_MS } from 'constants/tour';
+import { TOUR_NEXT_FILL_CLASS, TOUR_NEXT_STEP_DELAY_MS, TOUR_SKIP_HOLD_DURATION_MS } from 'constants/tour';
+import { usePrefersReducedMotion } from 'hooks/usePrefersReducedMotion';
 
 interface TourStepCopy {
   title: string;
@@ -29,6 +30,8 @@ interface TourModalContentProps {
   onSkipTour: () => void;
   /** Next is greyed out and ignores clicks while the step is still fresh (see TOUR_NEXT_STEP_DELAY_MS). */
   isNextLocked?: boolean;
+  /** How long the lock lasts, so the Next button can fill up over exactly that time. */
+  nextLockDurationMs?: number;
   onNextTourStep: () => void;
   onPrevTourStep: () => void;
   /** Dialog semantics supplied by the positioning layer (Joyride's tooltipProps). */
@@ -93,34 +96,66 @@ const SkipPrompt: React.FC<{ onSkipTour: () => void; onCancelSkip: () => void }>
 
 /**
  * Next (or Finish). Focus lands here so Enter advances the tour. While locked it
- * is greyed out and ignores clicks, using aria-disabled rather than disabled so
- * it keeps focus and screen readers still announce it.
+ * ignores clicks, using aria-disabled rather than disabled so it keeps focus and
+ * screen readers still announce it. The button fills up left to right over the
+ * lock so people can see when it will become clickable; under reduced motion it
+ * is simply greyed out until then.
  */
-const TourNextButton: React.FC<{ isLocked: boolean; onNext: () => void; children: React.ReactNode }> = ({
-  isLocked,
-  onNext,
-  children,
-}) => (
-  <button
-    type="button"
-    autoFocus
-    aria-disabled={isLocked}
-    onClick={isLocked ? undefined : onNext}
-    style={{
-      padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-      backgroundColor: theme.colors.primary.main,
-      color: COLOR_NAMED_WHITE,
-      border: STRING_NONE,
-      borderRadius: theme.borderRadius.md,
-      cursor: isLocked ? 'not-allowed' : 'pointer',
-      opacity: isLocked ? OPACITY_HALF : OPACITY_FULL,
-      transition: 'opacity 0.2s ease',
-      fontWeight: theme.typography.fontWeight.semibold,
-    }}
-  >
-    {children}
-  </button>
-);
+const TourNextButton: React.FC<{
+  isLocked: boolean;
+  lockDurationMs: number;
+  onNext: () => void;
+  children: React.ReactNode;
+}> = ({ isLocked, lockDurationMs, onNext, children }) => {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const isFilling = isLocked && !prefersReducedMotion && lockDurationMs > 0;
+  return (
+    <button
+      type="button"
+      autoFocus
+      aria-disabled={isLocked}
+      onClick={isLocked ? undefined : onNext}
+      style={nextButtonStyle(isLocked, isFilling)}
+    >
+      {isFilling && (
+        <span
+          aria-hidden
+          data-testid="tour-next-fill"
+          className={TOUR_NEXT_FILL_CLASS}
+          style={{ ...nextFillStyle, animationDuration: `${lockDurationMs}ms` }}
+        />
+      )}
+      <span style={{ position: 'relative' }}>{children}</span>
+    </button>
+  );
+};
+
+function nextButtonStyle(isLocked: boolean, isFilling: boolean): React.CSSProperties {
+  return {
+    position: 'relative',
+    overflow: 'hidden',
+    padding: `${theme.spacing.sm} ${theme.spacing.md}`,
+    // While filling, the pale track shows how much of the wait is left; the fill ends at the normal colour.
+    backgroundColor: isFilling ? theme.colors.button.primary.disable : theme.colors.primary.main,
+    color: COLOR_NAMED_WHITE,
+    border: STRING_NONE,
+    borderRadius: theme.borderRadius.md,
+    cursor: isLocked ? 'not-allowed' : 'pointer',
+    opacity: isLocked && !isFilling ? OPACITY_HALF : OPACITY_FULL,
+    transition: 'opacity 0.2s ease',
+    fontWeight: theme.typography.fontWeight.semibold,
+  };
+}
+
+const nextFillStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundColor: theme.colors.primary.main,
+  // Starts empty, so if the fill animation (App.css) is ever missing the button still reads as locked.
+  transform: 'scaleX(0)',
+  transformOrigin: 'left center',
+  pointerEvents: 'none',
+};
 
 /**
  * The tour card: step title, copy, Skip/Back/Next and progress. Placement (next
@@ -136,6 +171,7 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
   onCancelSkip,
   onSkipTour,
   isNextLocked = false,
+  nextLockDurationMs = TOUR_NEXT_STEP_DELAY_MS,
   onNextTourStep,
   onPrevTourStep,
   dialogProps,
@@ -198,7 +234,13 @@ export const TourModalContent: React.FC<TourModalContentProps> = ({
             {t('onboarding.tour.back')}
           </button>
         )}
-        <TourNextButton isLocked={isNextLocked} onNext={onNextTourStep}>
+        <TourNextButton
+          // Remount per step so the fill restarts from empty on each new step.
+          key={tourStep}
+          isLocked={isNextLocked}
+          lockDurationMs={nextLockDurationMs}
+          onNext={onNextTourStep}
+        >
           {isLastStep ? t('onboarding.tour.finish') : t('onboarding.tour.next')}
         </TourNextButton>
       </div>

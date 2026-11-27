@@ -1,4 +1,4 @@
-import { toArticleKeySegment } from './HelpArticle';
+import { toArticleKeySegment } from 'constants/helpArticles';
 
 describe('toArticleKeySegment', () => {
   it('converts a kebab-case article id to the camelCase locale key segment', () => {

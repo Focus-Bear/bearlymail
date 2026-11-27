@@ -21,6 +21,7 @@ import { User } from "../../database/entities/user.entity";
 import { formatGaxiosError } from "../../types/common";
 import { UsersService } from "../../users/users.service";
 import { InvalidTokenError } from "../../utils/errors";
+import { toPlainTextBody } from "../../utils/plain-text-body.util";
 import { GmailSearchResult } from "../email-search.types";
 import { EmailsService } from "../emails.service";
 import {
@@ -69,38 +70,6 @@ import { parseRecipientsFromString } from "../../utils/email-address.utils";
 /** True when the user was flagged because their Google grant lacks a Gmail scope. */
 function isAwaitingScopeReconsent(user: User): boolean {
   return user.lastLogoutReason === RELOGIN_REASONS.GMAIL_INSUFFICIENT_SCOPE;
-}
-
-/**
- * Strips HTML tags and decodes common HTML entities to produce a plain-text
- * fallback body for multipart/alternative emails.
- */
-function stripHtmlTags(html: string): string {
-  return (
-    html
-      // `\b` word boundary avoids mis-matching tags like `<scripture>`/`<styles>`;
-      // end tags tolerate whitespace/attributes (e.g. `</script foo>`), or a crafted
-      // closing tag leaves executable-looking script text behind (CWE-116).
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, "")
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, "")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&#(\d+);/g, (_, code) =>
-        String.fromCharCode(parseInt(code, 10)),
-      )
-      .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>
-        String.fromCharCode(parseInt(hex, 16)),
-      )
-      // Decode `&amp;` LAST so `&amp;lt;` becomes `&lt;`, not `<` (double-escaping, CWE-116).
-      .replace(/&amp;/g, "&")
-      .trim()
-  );
 }
 
 /** Shared Gmail query for fetching inbox threads (excludes snoozed + VA-to-action labels). */
@@ -534,8 +503,9 @@ export class GmailProvider implements EmailProvider {
     const emailContent = buildEmailContent({
       to,
       subject,
-      // plain-text fallback for email clients that don't render HTML
-      body: stripHtmlTags(body),
+      // plain-text fallback for email clients that don't render HTML; with a
+      // separate htmlBody, `body` already is that text
+      body: htmlBody ? body : toPlainTextBody(body),
       // Prefer an explicit HTML body (e.g. forwards with <br> signatures); fall
       // back to treating `body` as HTML for callers that pass rich HTML there.
       htmlBody: htmlBody ?? body,

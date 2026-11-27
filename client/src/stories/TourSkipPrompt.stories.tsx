@@ -3,6 +3,9 @@
  * it asks the user to stay and makes skipping a 5-second press-and-hold. Next
  * is greyed out for the first few seconds of each step.
  */
+// The tour's Next fill animation lives in the app stylesheet, which Storybook doesn't load by itself.
+import '../App.css';
+
 import React from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import type { Meta, StoryObj } from '@storybook/react';

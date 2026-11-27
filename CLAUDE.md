@@ -218,6 +218,7 @@ Need to modify something? Here's where to find it:
 - Engagement signals: `openedAt` (first open in BearlyMail), `archivedAt` (user archive/delete), `archivedWhileUnread`
 - `userPriorityOverride`, `priorityOverrideReason` (encrypted), `priorityOverrideReasonType`
 - `attachments` (encrypted JSON: `{attachmentId, filename, mimeType, size}[]`)
+- `unsubscribeOptions` (encrypted JSON: `{httpsUrl?, mailto?, oneClick, source}` from List-Unsubscribe / List-Unsubscribe-Post, else an https body link; the API exposes only the derived `unsubscribeMethod`, and `POST /emails/:id/unsubscribe` acts on it — see `server/src/emails/unsubscribe/`)
 - `receivedAt` (CreateDateColumn)
 - Indexes on: `[userId, threadId]`, `[userId, messageId]`, `[userId, receivedAt]`, `[userId, emailThreadId]`, `[userId, isBatched, batchReleaseAt]`
 
@@ -860,6 +861,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 - `/follow-ups/*` - Follow-up drafts and bulk send
 - `/batch-schedule/*` - Email batching schedule
 - `/github/*` - GitHub integration settings
+- `GET /mailing-lists` - Settings → Subscriptions: senders with stored unsubscribe info in the last 90 days (count, per-week, method), busiest first, blocked senders left out (`server/src/emails/unsubscribe/mailing-lists.service.ts`). The page then unsubscribes and archives the ticked ones one at a time via `POST /emails/:id/unsubscribe` and `POST /emails/:id/unsubscribe/archive-sender` with `{ includeThisThread: true }`
 - `POST /csp-report` - Public, throttled sink for the web app's CSP `report-uri`/`report-to` reports (`server/src/csp-report/`); logs a one-line summary per violation. The web app's CSP itself is set by CloudFront in the private infra repo
 - `/personal-access-tokens` - Create/list/revoke tokens for Claude (JWT only; a token can never mint tokens)
 - `POST /mcp` - MCP server (Streamable HTTP, stateless JSON-RPC); authenticated by `Authorization: Bearer bm_pat_...` or an OAuth access token (`bm_oat_...`) only, never the session cookie; a 401 carries the RFC 9728 `WWW-Authenticate` challenge

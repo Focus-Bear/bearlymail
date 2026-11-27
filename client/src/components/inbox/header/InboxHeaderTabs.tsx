@@ -25,6 +25,11 @@ interface InboxHeaderTabsProps {
   actionTabRef: RefObject<HTMLButtonElement | null>;
   followUpTabRef: RefObject<HTMLButtonElement | null>;
   tabCounts?: TabCounts | null;
+  /**
+   * Threads the active tab's list shows while a priority filter hides some, so
+   * its label reads "Triage (3 of 499)" instead of a count that doesn't match the list.
+   */
+  activeTabVisibleCount?: number | null;
   /** Animation to play on the Action tab because an email just moved there. */
   actionTabEmphasis?: ActionTabEmphasis | null;
   onActionTabEmphasisEnd?: () => void;
@@ -80,6 +85,32 @@ function getTabButtonStyle({
   };
 }
 
+function getTabName(tabMode: InboxMode, translate: (key: string) => string): string {
+  switch (tabMode) {
+    case MODE_TRIAGE:
+      return translate('inbox.triageTab');
+    case MODE_ACTION:
+      return translate('inbox.actionTab');
+    case MODE_FOLLOW_UP:
+      return translate('inbox.followUpTab');
+    default:
+      return '';
+  }
+}
+
+function getTabCount(tabMode: InboxMode, tabCounts: TabCounts | null | undefined): number | undefined {
+  switch (tabMode) {
+    case MODE_TRIAGE:
+      return tabCounts?.triage;
+    case MODE_ACTION:
+      return tabCounts?.action;
+    case MODE_FOLLOW_UP:
+      return tabCounts?.followUp;
+    default:
+      return undefined;
+  }
+}
+
 /** On narrow screens the tabs have their own header row, split evenly; otherwise they sit inline. */
 function getTabsRowStyle(isFullWidthRow: boolean): React.CSSProperties {
   if (isFullWidthRow) {
@@ -100,6 +131,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
   actionTabRef,
   followUpTabRef,
   tabCounts,
+  activeTabVisibleCount = null,
   actionTabEmphasis,
   onActionTabEmphasisEnd,
   actionMovedCount = 0,
@@ -125,29 +157,26 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
     if (loadingModeSwitch && mode === tabMode) {
       return 'Loading...';
     }
-    let label = '';
-    let count: number | undefined;
-    switch (tabMode) {
-      case MODE_TRIAGE:
-        label = t('inbox.triageTab');
-        count = tabCounts?.triage;
-        break;
-      case MODE_ACTION:
-        label = t('inbox.actionTab');
-        count = tabCounts?.action;
-        break;
-      case MODE_FOLLOW_UP:
-        label = t('inbox.followUpTab');
-        count = tabCounts?.followUp;
-        break;
-      default:
-        label = '';
+    const label = getTabName(tabMode, t);
+    const count = getTabCount(tabMode, tabCounts);
+    if (count === undefined) {
+      return label;
+    }
+    if (tabMode === mode && activeTabVisibleCount !== null) {
+      const filteredKey = isMobile ? 'inbox.tabCount.filteredCompact' : 'inbox.tabCount.filtered';
+      return t(filteredKey, { label, visible: activeTabVisibleCount, total: count });
     }
     // Show count for all tabs (including 0)
-    if (count !== undefined) {
-      return `${label} (${count})`;
+    return `${label} (${count})`;
+  };
+
+  /** Explains a filtered count on hover, since "3 of 499" alone doesn't say why the rest are hidden. */
+  const getTabTitle = (tabMode: InboxMode): string | undefined => {
+    const count = getTabCount(tabMode, tabCounts);
+    if (tabMode !== mode || activeTabVisibleCount === null || count === undefined) {
+      return undefined;
     }
-    return label;
+    return t('inbox.tabCount.filteredHint', { visible: activeTabVisibleCount, total: count });
   };
 
   return (
@@ -159,6 +188,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
         onClick={() => handleTabClick('triage')}
         disabled={loadingModeSwitch}
         style={getTabStyle('triage')}
+        title={getTabTitle('triage')}
       >
         {getTabLabel('triage')}
       </button>
@@ -169,6 +199,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
         onClick={() => handleTabClick('action')}
         disabled={loadingModeSwitch}
         style={{ ...getTabStyle('action'), position: 'relative' }}
+        title={getTabTitle('action')}
         onAnimationEnd={event => endEmphasisOnOwnAnimation(event, actionTabEmphasis, onActionTabEmphasisEnd)}
       >
         {getTabLabel('action')}
@@ -180,6 +211,7 @@ export const InboxHeaderTabs: React.FC<InboxHeaderTabsProps> = ({
         onClick={() => handleTabClick('follow-up')}
         disabled={loadingModeSwitch}
         style={getTabStyle('follow-up')}
+        title={getTabTitle('follow-up')}
       >
         {getTabLabel('follow-up')}
       </button>

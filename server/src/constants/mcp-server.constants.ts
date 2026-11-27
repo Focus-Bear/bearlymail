@@ -1,3 +1,4 @@
+import { BYTE_CONVERSIONS } from "./service-constants";
 import { MILLISECONDS } from "./time-constants";
 
 /**
@@ -24,6 +25,15 @@ export const MCP_SERVER = {
   /** Hard cap on messages sent through MCP per user per hour. */
   SEND_LIMIT_PER_HOUR: 30,
   SEND_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,
+  /** Most addresses one message may have across to, cc and bcc together. */
+  MAX_RECIPIENTS_PER_MESSAGE: 50,
+  /** Hard cap on addresses mailed through MCP per user per hour. */
+  SEND_RECIPIENTS_PER_HOUR: 150,
+  /** Failed authentications per client address before /mcp answers 429. */
+  AUTH_FAILURE_LIMIT: 30,
+  AUTH_FAILURE_WINDOW_MS: MILLISECONDS.MINUTE,
+  /** Most client addresses tracked for failed authentication at once. */
+  AUTH_FAILURE_MAX_TRACKED: 10_000,
   /** Advisory lock name; holds one user's MCP sends to one at a time. */
   SEND_LOCK_PREFIX: "mcp-send:",
   DEFAULT_LIST_LIMIT: 20,
@@ -40,12 +50,38 @@ export const MCP_SERVER = {
     SEND_EMAIL: "MCP_SEND_EMAIL",
   },
   AUDIT_TARGET_TYPE: "email_send_attempt",
+  /**
+   * JSON body cap for `POST /mcp`, above the app-wide 100kb default because
+   * draft attachments arrive base64-encoded (4/3 of their size) in the call.
+   */
+  MAX_REQUEST_BODY: "15mb",
+} as const;
+
+const MAX_DRAFT_ATTACHMENT_TOTAL_MB = 10;
+
+/** Limits and links for the draft tools (create/update/list/delete_draft). */
+export const MCP_DRAFTS = {
+  MAX_ATTACHMENTS: 10,
+  /** Decoded size of all of a draft's attachments together. */
+  MAX_ATTACHMENT_TOTAL_MB: MAX_DRAFT_ATTACHMENT_TOTAL_MB,
+  MAX_ATTACHMENT_TOTAL_BYTES:
+    MAX_DRAFT_ATTACHMENT_TOTAL_MB * BYTE_CONVERSIONS.MB,
+  MAX_FILENAME_LENGTH: 255,
+  MAX_MIME_TYPE_LENGTH: 255,
+  MAX_LIST_LIMIT: 50,
+  /** Web-app routes a draft opens in; must match the client's routes. */
+  COMPOSE_PATH: "/compose",
+  COMPOSE_DRAFT_PARAM: "draftId",
+  EMAIL_DETAIL_PATH: "/email",
 } as const;
 
 /** Limits and audit names for the category/rule settings tools. */
 export const MCP_SETTINGS = {
   /** Most rules one bulk call (delete_rules, set_rules_enabled) may touch. */
   MAX_RULE_IDS_PER_CALL: 50,
+  /** Hard cap on category/rule changes through MCP per user per hour. */
+  WRITE_LIMIT_PER_HOUR: 60,
+  WRITE_LIMIT_WINDOW_MS: MILLISECONDS.HOUR,
   MAX_CATEGORY_DESCRIPTION_LENGTH: 1000,
   /**
    * Categories are stored as "Name - Description", so a name containing this
@@ -80,6 +116,10 @@ export const MCP_TOOL_NAMES = {
   LIST_FOLLOW_UPS: "list_follow_ups",
   SEND_REPLY: "send_reply",
   SEND_EMAIL: "send_email",
+  CREATE_DRAFT: "create_draft",
+  UPDATE_DRAFT: "update_draft",
+  LIST_DRAFTS: "list_drafts",
+  DELETE_DRAFT: "delete_draft",
   LIST_CATEGORIES: "list_categories",
   GET_CATEGORY: "get_category",
   CREATE_CATEGORY: "create_category",

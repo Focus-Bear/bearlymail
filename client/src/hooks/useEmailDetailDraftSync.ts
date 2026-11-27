@@ -1,5 +1,7 @@
 import { RefObject, useEffect, useRef } from 'react';
+import { SavedDraft } from 'types/draft';
 import { buildReplySubject } from 'utils/replySubject';
+import { savedDraftAttachmentsToFiles } from 'utils/savedDraft';
 
 import { AUTO_SAVE_INTERVAL_MS } from 'constants/numbers';
 import { REPLY_MODE_REPLY } from 'constants/strings';
@@ -15,10 +17,15 @@ interface UseEmailDetailDraftSyncParams {
   showReplyComposer: boolean;
   replyComposerRef: RefObject<HTMLDivElement | null>;
   saveDraft: (draft: string, mode: 'reply' | 'replyAll' | 'forward', recipients: string, threadId?: string) => void | Promise<void>;
-  fetchDraft: () => Promise<{ content?: string; replyMode?: string; recipients?: string } | null | undefined>;
+  fetchDraft: () => Promise<SavedDraft | null | undefined>;
   setDraft: (draft: string) => void;
   setReplyRecipients: (recipients: string) => void;
   setReplySubject: (subject: string) => void;
+  setReplyCc: (cc: string) => void;
+  setReplyBcc: (bcc: string) => void;
+  setShowCc: (isShown: boolean) => void;
+  setShowBcc: (isShown: boolean) => void;
+  setRestoredReplyFiles: (files: File[]) => void;
   setReplyMode: (mode: 'reply' | 'replyAll' | 'forward') => void;
   setShowReplyComposer: (show: boolean) => void;
   setReplyOptions: (options: Array<{ label: string; text: string }> | null) => void;
@@ -41,6 +48,11 @@ export const useEmailDetailDraftSync = ({
   setDraft,
   setReplyRecipients,
   setReplySubject,
+  setReplyCc,
+  setReplyBcc,
+  setShowCc,
+  setShowBcc,
+  setRestoredReplyFiles,
   setReplyMode,
   setShowReplyComposer,
   setReplyOptions,
@@ -104,6 +116,11 @@ export const useEmailDetailDraftSync = ({
     setReplyRecipients,
     setReplySubject,
     setReplyMode,
+    setReplyCc,
+    setReplyBcc,
+    setShowCc,
+    setShowBcc,
+    setRestoredReplyFiles,
   });
 
   useAutoSaveDraft({
@@ -137,6 +154,11 @@ interface RestoreSavedDraftParams
     | 'setReplyRecipients'
     | 'setReplySubject'
     | 'setReplyMode'
+    | 'setReplyCc'
+    | 'setReplyBcc'
+    | 'setShowCc'
+    | 'setShowBcc'
+    | 'setRestoredReplyFiles'
   > {
   /** The composer's current body, read when the saved draft arrives. */
   latestDraftRef: RefObject<string | null>;
@@ -148,23 +170,19 @@ interface RestoreSavedDraftParams
  * so a late response must not overwrite what the user has typed meanwhile, nor
  * land in a thread they have already left.
  */
-function useRestoreSavedDraft({
-  email,
-  latestDraftRef,
-  fetchDraft,
-  setDraft,
-  setShowReplyComposer,
-  setReplyRecipients,
-  setReplySubject,
-  setReplyMode,
-}: RestoreSavedDraftParams): void {
+function useRestoreSavedDraft(params: RestoreSavedDraftParams): void {
+  const { email, latestDraftRef, fetchDraft } = params;
   const lastLoadedThreadIdRef = useRef<string | null>(null);
+  // Setters are read through a ref so new callbacks never re-run the restore.
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
   useEffect(() => {
     const threadId = email?.threadId;
     if (!threadId || lastLoadedThreadIdRef.current === threadId) {
       return;
     }
     lastLoadedThreadIdRef.current = threadId;
+    paramsRef.current.setRestoredReplyFiles([]);
     const subject = email?.subject;
     const restoreSavedDraft = async () => {
       const savedDraft = await fetchDraft();
@@ -173,31 +191,35 @@ function useRestoreSavedDraft({
       if (!savedDraft?.content || !isStillOpen || hasTypedSinceOpening) {
         return;
       }
-      const restoredMode = (savedDraft.replyMode as 'reply' | 'replyAll' | 'forward' | undefined) ?? REPLY_MODE_REPLY;
-      setDraft(savedDraft.content);
-      setShowReplyComposer(true);
-      if (savedDraft.replyMode) {
-        setReplyMode(restoredMode);
-      }
-      if (savedDraft.recipients) {
-        setReplyRecipients(savedDraft.recipients);
-      }
-      // Saved drafts don't store a subject, and only the Reply buttons fill it
-      // in — without this a restored draft showed an empty Subject field.
-      setReplySubject(buildReplySubject(restoredMode, subject));
+      applySavedDraft(savedDraft, subject, paramsRef.current);
     };
     void restoreSavedDraft();
-  }, [
-    email?.threadId,
-    email?.subject,
-    latestDraftRef,
-    fetchDraft,
-    setDraft,
-    setShowReplyComposer,
-    setReplyRecipients,
-    setReplySubject,
-    setReplyMode,
-  ]);
+  }, [email?.threadId, email?.subject, latestDraftRef, fetchDraft]);
+}
+
+/** Fills the reply composer from a saved draft, including what an AI assistant added. */
+function applySavedDraft(savedDraft: SavedDraft, emailSubject: string | undefined, setters: RestoreSavedDraftParams): void {
+  const restoredMode = savedDraft.replyMode ?? REPLY_MODE_REPLY;
+  setters.setDraft(savedDraft.content);
+  setters.setShowReplyComposer(true);
+  if (savedDraft.replyMode) {
+    setters.setReplyMode(restoredMode);
+  }
+  if (savedDraft.recipients) {
+    setters.setReplyRecipients(savedDraft.recipients);
+  }
+  if (savedDraft.cc) {
+    setters.setReplyCc(savedDraft.cc);
+    setters.setShowCc(true);
+  }
+  if (savedDraft.bcc) {
+    setters.setReplyBcc(savedDraft.bcc);
+    setters.setShowBcc(true);
+  }
+  // Drafts saved in the composer don't store a subject, and only the Reply
+  // buttons fill it in — without this a restored draft showed an empty Subject.
+  setters.setReplySubject(savedDraft.subject || buildReplySubject(restoredMode, emailSubject));
+  setters.setRestoredReplyFiles(savedDraftAttachmentsToFiles(savedDraft.attachments));
 }
 
 /**

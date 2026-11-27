@@ -32,8 +32,6 @@ export interface EmailListItemViewProps {
   suggestion: TriageSuggestion | null;
   /** Derived from Redux selectAnimatingOut — null when not animating */
   animatingOutType: typeof ANIMATION_TYPE_ARCHIVE | typeof ANIMATION_TYPE_PRIORITY | null;
-  /** Star count from the animating-out transition (used for the destination label) */
-  animatingOutStarCount?: number;
   priorityTooltip: {
     hoveredPriorityEmailId: string | null;
     priorityExplanation: PriorityExplanation | null;
@@ -83,7 +81,6 @@ export const EmailListItemView: React.FC<EmailListItemViewProps> = ({
   isSelected,
   suggestion,
   animatingOutType,
-  animatingOutStarCount,
   priorityTooltip,
   keyboardHint,
   snoozeInput,
@@ -134,7 +131,8 @@ export const EmailListItemView: React.FC<EmailListItemViewProps> = ({
         <>
           <div className="priority-emoji-float" aria-hidden="true" />
           <div className="priority-destination-label" aria-hidden="true">
-            {animatingOutStarCount === 2 ? t('inbox.triage.movingToFollowUp') : t('inbox.triage.movingToAction')}
+            {/* Prioritising always lands in Action; Follow Up depends on who sent the last message, not the level. */}
+            {t('inbox.triage.movingToAction')}
           </div>
         </>
       )}

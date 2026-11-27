@@ -6,6 +6,7 @@ import { captureEvent } from 'utils/posthog';
 
 import { BackToInboxLink } from 'components/common/BackToInboxLink';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { HELP_ARTICLE_IDS, helpArticlePath } from 'constants/helpArticles';
 
 export const SearchHeader: React.FC = () => {
   const { t } = useTranslation();
@@ -39,7 +40,7 @@ export const SearchHeader: React.FC = () => {
             {t('search.title')}
           </h1>
           <Link
-            to="/help/search"
+            to={helpArticlePath(HELP_ARTICLE_IDS.SEARCH)}
             onClick={() => captureEvent(ANALYTICS_EVENTS.SEARCH_HELP_CLICKED)}
             style={{
               fontSize: theme.typography.fontSize.sm,

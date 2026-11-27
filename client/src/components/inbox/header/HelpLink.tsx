@@ -6,52 +6,36 @@ import { InboxMode } from 'types/email';
 import { captureEvent } from 'utils/posthog';
 
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
+import { HELP_ARTICLE_IDS, HelpArticleId, helpArticlePath } from 'constants/helpArticles';
 import { MODE_ACTION, MODE_AUTORESPONDED, MODE_BLOCKED, MODE_TRIAGE } from 'constants/strings';
 
 interface HelpLinkProps {
   mode: InboxMode;
 }
 
-const getHelpLink = (mode: InboxMode): string => {
-  if (mode === MODE_TRIAGE) {
-    return '/help/triage';
+/** The article explaining the inbox view the user is on. */
+const getHelpArticleId = (mode: InboxMode): HelpArticleId => {
+  if (mode === MODE_TRIAGE || mode === MODE_BLOCKED) {
+    return HELP_ARTICLE_IDS.TRIAGE;
   }
   if (mode === MODE_ACTION) {
-    return '/help/process';
+    return HELP_ARTICLE_IDS.ACTION;
   }
   if (mode === MODE_AUTORESPONDED) {
-    return '/help/autoresponder';
+    return HELP_ARTICLE_IDS.AUTORESPONDER;
   }
-  if (mode === MODE_BLOCKED) {
-    return '/help/triage';
-  }
-  return '/help/follow-up';
-};
-
-const getHelpType = (mode: InboxMode): string => {
-  if (mode === MODE_TRIAGE) {
-    return 'triage';
-  }
-  if (mode === MODE_ACTION) {
-    return 'process';
-  }
-  if (mode === MODE_AUTORESPONDED) {
-    return 'autoresponder';
-  }
-  if (mode === MODE_BLOCKED) {
-    return 'triage';
-  }
-  return 'follow-up';
+  return HELP_ARTICLE_IDS.FOLLOW_UP;
 };
 
 export const HelpLink: React.FC<HelpLinkProps> = ({ mode }) => {
   const { t } = useTranslation();
+  const articleId = getHelpArticleId(mode);
 
   return (
     <Link
-      to={getHelpLink(mode)}
+      to={helpArticlePath(articleId)}
       onClick={() => {
-        captureEvent(ANALYTICS_EVENTS.HELP_LINK_CLICKED, { help_type: getHelpType(mode) });
+        captureEvent(ANALYTICS_EVENTS.HELP_LINK_CLICKED, { help_type: articleId });
       }}
       style={{
         display: 'flex',

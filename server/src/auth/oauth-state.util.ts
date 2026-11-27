@@ -78,6 +78,42 @@ function connectBindingCookieOptions(): CookieOptions {
   };
 }
 
+/** Binding cookie for the GitHub connect flow. */
+export const GITHUB_BINDING_COOKIE = "bm_github_connect";
+/** Binding cookie for connecting an external MCP server over OAuth. */
+export const MCP_CLIENT_BINDING_COOKIE = "bm_mcp_connect";
+
+/**
+ * Sets `value` (or a fresh random nonce) as a binding cookie on the browser
+ * that is starting a connect flow, and returns it. The callback later checks
+ * the cookie with `isBrowserBound`, so a connect link only completes in the
+ * browser that asked for it.
+ */
+export function issueBrowserBinding(
+  res: Response,
+  cookieName: string,
+  value: string = randomBytes(CONNECT_NONCE_BYTES).toString("base64url"),
+): string {
+  res.cookie(cookieName, value, connectBindingCookieOptions());
+  return value;
+}
+
+/** True when this browser holds the binding cookie matching `expected`. */
+export function isBrowserBound(
+  expected: string | undefined,
+  req: Pick<Request, "headers">,
+  cookieName: string,
+): boolean {
+  const cookie = readCookie(req, cookieName);
+  if (!expected || !cookie) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const provided = Buffer.from(cookie);
+  return (
+    expectedBuffer.length === provided.length &&
+    timingSafeEqual(expectedBuffer, provided)
+  );
+}
+
 /**
  * Builds a signed, timestamped connect-state for the given user and sets the
  * matching binding cookie on this browser. The signature alone stops a forged
@@ -88,7 +124,7 @@ function connectBindingCookieOptions(): CookieOptions {
  */
 export function createConnectState(userId: string, res: Response): string {
   const nonce = randomBytes(CONNECT_NONCE_BYTES).toString("base64url");
-  res.cookie(CONNECT_BINDING_COOKIE, nonce, connectBindingCookieOptions());
+  issueBrowserBinding(res, CONNECT_BINDING_COOKIE, nonce);
   return encodeSignedState({
     userId,
     action: AUTH_ACTION_TYPES.CONNECT,
@@ -119,13 +155,7 @@ export function isConnectStateBoundToBrowser(
   state: ParsedOAuthState,
   req: Pick<Request, "headers">,
 ): boolean {
-  const cookie = readCookie(req, CONNECT_BINDING_COOKIE);
-  if (!state.nonce || !cookie) return false;
-  const expected = Buffer.from(state.nonce);
-  const provided = Buffer.from(cookie);
-  return (
-    expected.length === provided.length && timingSafeEqual(expected, provided)
-  );
+  return isBrowserBound(state.nonce, req, CONNECT_BINDING_COOKIE);
 }
 
 /**

@@ -48,6 +48,24 @@ interface CacheEntry {
   timestamp: number;
 }
 
+type TabCountKey = keyof TabCounts;
+
+function tabCountKeyFor(mode: InboxMode): TabCountKey | null {
+  if (mode === MODE_TRIAGE || mode === MODE_ACTION) {
+    return mode;
+  }
+  return mode === MODE_FOLLOW_UP ? 'followUp' : null;
+}
+
+function sumSummary(summary: ReadonlyArray<{ count: number }>): number {
+  return summary.reduce((sum, category) => sum + category.count, 0);
+}
+
+function hasPriorityFilterFor(mode: InboxMode, filters?: InboxFilter): boolean {
+  const effectiveFilters = resolveEffectiveFilters(mode, filters);
+  return effectiveFilters?.minPriority != null || effectiveFilters?.maxPriority != null;
+}
+
 /** Reconcile the active badge with the summary that renders its category list. */
 export function reconcileActiveTabCounts(options: {
   counts: TabCounts | null;
@@ -56,18 +74,35 @@ export function reconcileActiveTabCounts(options: {
   filters?: InboxFilter;
 }): TabCounts | null {
   const { counts, mode, summary, filters } = options;
-  if (!counts || summary === null) {
+  const key = tabCountKeyFor(mode);
+  if (!counts || summary === null || key === null) {
     return counts;
   }
-  if (mode !== MODE_TRIAGE && mode !== MODE_ACTION && mode !== MODE_FOLLOW_UP) {
-    return counts;
-  }
-  const key = mode === MODE_FOLLOW_UP ? 'followUp' : mode;
-  const total = summary.reduce((sum, category) => sum + category.count, 0);
-  const effectiveFilters = resolveEffectiveFilters(mode, filters);
+  const total = sumSummary(summary);
   // Badges count all priorities. A manually narrowed list is only a lower bound.
-  const hasPriorityFilter = effectiveFilters?.minPriority != null || effectiveFilters?.maxPriority != null;
-  return { ...counts, [key]: hasPriorityFilter ? Math.max(counts[key], total) : total };
+  return { ...counts, [key]: hasPriorityFilterFor(mode, filters) ? Math.max(counts[key], total) : total };
+}
+
+/**
+ * How many threads the active tab's list shows while a priority filter hides
+ * some of them, so its badge can read "3 of 499". Null when nothing is hidden
+ * (the badge then shows the plain count). Category and account filters already
+ * narrow the badge itself server-side, so only the priority filter, which
+ * badges deliberately ignore, opens a gap between list and badge.
+ */
+export function getActiveTabVisibleCount(options: {
+  counts: TabCounts | null;
+  mode: InboxMode;
+  summary: ReadonlyArray<{ count: number }> | null;
+  filters?: InboxFilter;
+}): number | null {
+  const { counts, mode, summary, filters } = options;
+  const key = tabCountKeyFor(mode);
+  if (!counts || summary === null || key === null || !hasPriorityFilterFor(mode, filters)) {
+    return null;
+  }
+  const visible = sumSummary(summary);
+  return visible < counts[key] ? visible : null;
 }
 
 /**

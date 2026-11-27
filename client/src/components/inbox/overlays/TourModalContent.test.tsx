@@ -61,6 +61,36 @@ describe('TourModalContent Next lock', () => {
     expect(next).not.toBeDisabled();
     expect(next).toHaveFocus();
   });
+
+  it('fills the Next button up over exactly the lock duration', () => {
+    renderModal({ isNextLocked: true, nextLockDurationMs: 2_500 });
+
+    expect(screen.getByTestId('tour-next-fill')).toHaveStyle({ animationDuration: '2500ms' });
+  });
+
+  it('drops the fill once Next unlocks', () => {
+    renderModal({ isNextLocked: false });
+
+    expect(screen.queryByTestId('tour-next-fill')).not.toBeInTheDocument();
+  });
+
+  it('shows no fill under reduced motion, leaving Next simply greyed out', () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }));
+    try {
+      renderModal({ isNextLocked: true });
+      expect(screen.queryByTestId('tour-next-fill')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = matchMedia;
+    }
+  });
 });
 
 describe('TourModalContent Skip (hold to skip)', () => {

@@ -2,6 +2,20 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Collapses line breaks so a name cannot spill out of the subject line. */
+function singleLine(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
 /**
  * Handles invite email dispatch for the organization invite flow.
  * Uses AWS SES (same infrastructure as EmailService) to send
@@ -41,14 +55,18 @@ export class InviteService {
     const acceptUrl = `${this.frontendUrl}/accept-invite/${inviteToken}`;
     const year = new Date().getFullYear();
 
-    const subject = `${inviterName} invited you to join ${orgName} on BearlyMail`;
+    const subject = `${singleLine(inviterName)} invited you to join ${singleLine(orgName)} on BearlyMail`;
+    // Both names are chosen by users, so they are escaped before they go into
+    // the HTML body.
+    const safeInviterName = escapeHtml(inviterName);
+    const safeOrgName = escapeHtml(orgName);
 
     const htmlBody = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${subject}</title>
+  <title>${escapeHtml(subject)}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
     .container { max-width: 520px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -70,7 +88,7 @@ export class InviteService {
     </div>
     <div class="body">
       <p>Hi there,</p>
-      <p><strong>${inviterName}</strong> has invited you to join the <strong>${orgName}</strong> team on BearlyMail — the AI-powered email client designed for focused work.</p>
+      <p><strong>${safeInviterName}</strong> has invited you to join the <strong>${safeOrgName}</strong> team on BearlyMail — the AI-powered email client designed for focused work.</p>
       <div class="cta">
         <a href="${acceptUrl}">Accept Invitation</a>
       </div>

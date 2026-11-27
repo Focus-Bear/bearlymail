@@ -33,7 +33,7 @@ describe("McpSendToolsService", () => {
   let providerManager: { getPrimaryProvider: jest.Mock };
   let sendQueue: { queueReply: jest.Mock; queueNewEmail: jest.Mock };
   let savedAudits: Record<string, unknown>[];
-  let auditLogs: { count: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let auditLogs: { find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let lockQuery: jest.Mock;
   let auditLogRepository: { manager: { transaction: jest.Mock } };
   let usersService: { findOneWithTokens: jest.Mock };
@@ -50,7 +50,7 @@ describe("McpSendToolsService", () => {
     };
     savedAudits = [];
     auditLogs = {
-      count: jest.fn(async () => savedAudits.length),
+      find: jest.fn(async () => savedAudits),
       create: jest.fn((row: Record<string, unknown>) => row),
       save: jest.fn(async (row: Record<string, unknown>) => {
         savedAudits.push(row);
@@ -135,7 +135,7 @@ describe("McpSendToolsService", () => {
         ["mcp-send:user-1"],
       );
       expect(lockQuery.mock.invocationCallOrder[0]).toBeLessThan(
-        auditLogs.count.mock.invocationCallOrder[0],
+        auditLogs.find.mock.invocationCallOrder[0],
       );
     });
 
@@ -148,7 +148,7 @@ describe("McpSendToolsService", () => {
     });
 
     it("sends nothing when the lock or count fails", async () => {
-      auditLogs.count.mockRejectedValue(new Error("database down"));
+      auditLogs.find.mockRejectedValue(new Error("database down"));
 
       await expect(
         service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
@@ -203,11 +203,40 @@ describe("McpSendToolsService", () => {
     });
 
     it("stops at the hourly send cap", async () => {
-      auditLogs.count.mockResolvedValue(MCP_SERVER.SEND_LIMIT_PER_HOUR);
+      auditLogs.find.mockResolvedValue(
+        Array.from({ length: MCP_SERVER.SEND_LIMIT_PER_HOUR }, () => ({
+          metadata: { recipientCount: 1 },
+        })),
+      );
       await expect(
         service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
       ).rejects.toThrow(/Send limit reached/);
       expect(sendQueue.queueReply).not.toHaveBeenCalled();
+    });
+
+    it("stops at the hourly recipient cap", async () => {
+      auditLogs.find.mockResolvedValue([
+        { metadata: { recipientCount: MCP_SERVER.SEND_RECIPIENTS_PER_HOUR } },
+      ]);
+      await expect(
+        service.sendReply(CONTEXT, { emailId: EMAIL_ID, body: "hi" }),
+      ).rejects.toThrow(/Recipient limit reached/);
+      expect(sendQueue.queueReply).not.toHaveBeenCalled();
+    });
+
+    it("refuses a message with too many addresses across to, cc and bcc", async () => {
+      const addresses = (prefix: string) =>
+        Array.from({ length: 20 }, (_, i) => `${prefix}${i}@example.com`);
+      await expect(
+        service.sendEmail(CONTEXT, {
+          to: addresses("to"),
+          cc: addresses("cc"),
+          bcc: addresses("bcc"),
+          subject: "Hi",
+          body: "hi",
+        }),
+      ).rejects.toThrow(/at most 50 addresses/);
+      expect(sendQueue.queueNewEmail).not.toHaveBeenCalled();
     });
   });
 

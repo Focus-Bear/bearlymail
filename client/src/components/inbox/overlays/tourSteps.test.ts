@@ -26,6 +26,7 @@ function stepFor(titleKey: string): TourStep {
   return { title: definition.titleKey, content: definition.contentKey, targets: definition.targets, placement: definition.placement };
 }
 
+const PRIORITY_BADGE_STEP = 'onboarding.tour.priorityBadgeTitle';
 const PRIORITISE_STEP = 'onboarding.tour.prioritiseTitle';
 const SNOOZE_STEP = 'onboarding.tour.snoozeTitle';
 const ARCHIVE_STEP = 'onboarding.tour.archiveTitle';
@@ -36,9 +37,10 @@ afterEach(() => {
 });
 
 describe('inbox tour — email card steps', () => {
-  it('explains the card, then prioritising, snoozing, archiving and blocking as separate steps, in that order', () => {
-    expect(INBOX_TOUR_STEPS.map(step => step.titleKey).slice(-5)).toEqual([
+  it('explains the card, the priority badge, then prioritising, snoozing, archiving and blocking as separate steps, in that order', () => {
+    expect(INBOX_TOUR_STEPS.map(step => step.titleKey).slice(-6)).toEqual([
       'onboarding.tour.assistantTitle',
+      PRIORITY_BADGE_STEP,
       PRIORITISE_STEP,
       SNOOZE_STEP,
       ARCHIVE_STEP,
@@ -47,6 +49,7 @@ describe('inbox tour — email card steps', () => {
   });
 
   it.each([
+    [PRIORITY_BADGE_STEP, TOUR_TARGETS.EMAIL_PRIORITY_BADGE],
     [PRIORITISE_STEP, TOUR_TARGETS.EMAIL_PRIORITY],
     [SNOOZE_STEP, TOUR_TARGETS.EMAIL_SNOOZE],
     [ARCHIVE_STEP, TOUR_TARGETS.EMAIL_ARCHIVE],
@@ -58,7 +61,7 @@ describe('inbox tour — email card steps', () => {
     expect(toJoyrideStep(stepFor(titleKey)).target).toBe(element);
   });
 
-  it.each([PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])(
+  it.each([PRIORITY_BADGE_STEP, PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])(
     '%s falls back to the email card when its control is not on screen',
     titleKey => {
       const row = mountTarget(TOUR_TARGETS.EMAIL_ROW);
@@ -67,7 +70,7 @@ describe('inbox tour — email card steps', () => {
     }
   );
 
-  it.each([PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])('%s becomes a centred card when there are no emails', titleKey => {
+  it.each([PRIORITY_BADGE_STEP, PRIORITISE_STEP, SNOOZE_STEP, ARCHIVE_STEP, BLOCK_STEP])('%s becomes a centred card when there are no emails', titleKey => {
     expect(toJoyrideStep(stepFor(titleKey)).placement).toBe(TOUR_PLACEMENT_CENTER);
   });
 });

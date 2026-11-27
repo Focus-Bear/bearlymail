@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { theme } from 'theme/theme';
 
+import { ACCESS_LEVELS, AccessLevel } from 'constants/claudeAccess';
+
 import { ConsentScopeChoice } from './ConsentScopeChoice';
 import { ConsentSettingsWriteChoice } from './ConsentSettingsWriteChoice';
 import { OAuthConsentDecision, OAuthConsentRequest } from './types';
@@ -29,6 +31,20 @@ const detailStyle: React.CSSProperties = {
   color: theme.colors.text.secondary,
 };
 
+const DENIED: OAuthConsentDecision = {
+  approve: false,
+  allowDrafts: false,
+  allowSend: false,
+  allowSettingsWrite: false,
+};
+
+const approvalFor = (accessLevel: AccessLevel, allowSettingsWrite: boolean): OAuthConsentDecision => ({
+  approve: true,
+  allowDrafts: accessLevel !== ACCESS_LEVELS.READ,
+  allowSend: accessLevel === ACCESS_LEVELS.SEND,
+  allowSettingsWrite,
+});
+
 /**
  * Asks the logged-in user whether an app (claude.ai, Claude Code…) may use
  * their mailbox. The redirect host is shown prominently because the app's
@@ -42,7 +58,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
   onDecide,
 }) => {
   const { t } = useTranslation();
-  const [allowSend, setAllowSend] = useState(false);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>(ACCESS_LEVELS.READ);
   const [allowSettingsWrite, setAllowSettingsWrite] = useState(false);
 
   return (
@@ -86,7 +102,12 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         </p>
       )}
 
-      <ConsentScopeChoice allowSend={allowSend} canRequestSend={request.canRequestSend} onChange={setAllowSend} />
+      <ConsentScopeChoice
+        accessLevel={accessLevel}
+        canRequestDrafts={request.canRequestDrafts}
+        canRequestSend={request.canRequestSend}
+        onChange={setAccessLevel}
+      />
       {request.canRequestSettingsWrite && (
         <ConsentSettingsWriteChoice allowSettingsWrite={allowSettingsWrite} onChange={setAllowSettingsWrite} />
       )}
@@ -105,7 +126,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: false, allowSend: false, allowSettingsWrite: false })}
+          onClick={() => onDecide(DENIED)}
           data-testid="oauth-consent-deny"
           style={{
             ...buttonStyle,
@@ -119,7 +140,7 @@ export const OAuthConsentCard: React.FC<OAuthConsentCardProps> = ({
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={() => onDecide({ approve: true, allowSend, allowSettingsWrite: allowSettingsWrite && request.canRequestSettingsWrite })}
+          onClick={() => onDecide(approvalFor(accessLevel, allowSettingsWrite && request.canRequestSettingsWrite))}
           data-testid="oauth-consent-allow"
           style={{
             ...buttonStyle,

@@ -49,9 +49,17 @@ const HIGH_AND_ABOVE_FILTER: InboxFilter = { accountIds: [], categories: [], min
 interface InboxTopBarDemoProps {
   availableCategories: Array<{ id: string; label: string }>;
   categoryCounts?: Record<string, number>;
+  tabCounts?: typeof TAB_COUNTS;
+  /** Threads the active tab's list shows while the priority filter hides the rest ("3 of 499"). */
+  activeTabVisibleCount?: number | null;
 }
 
-const InboxTopBarDemo: React.FC<InboxTopBarDemoProps> = ({ availableCategories, categoryCounts }) => {
+const InboxTopBarDemo: React.FC<InboxTopBarDemoProps> = ({
+  availableCategories,
+  categoryCounts,
+  tabCounts = TAB_COUNTS,
+  activeTabVisibleCount = null,
+}) => {
   const [mode, setMode] = useState<InboxMode>('triage');
   const [filters, setFilters] = useState<InboxFilter>(HIGH_AND_ABOVE_FILTER);
   const [isFilterBarVisible, setIsFilterBarVisible] = useState(true);
@@ -75,7 +83,8 @@ const InboxTopBarDemo: React.FC<InboxTopBarDemoProps> = ({ availableCategories, 
             triageTabRef={triageTabRef}
             actionTabRef={actionTabRef}
             followUpTabRef={followUpTabRef}
-            tabCounts={TAB_COUNTS}
+            tabCounts={tabCounts}
+            activeTabVisibleCount={activeTabVisibleCount}
             onToggleMobileMenu={() => {
               /* no-op in Storybook */
             }}
@@ -127,4 +136,14 @@ export const NoCategories: Story = {
 
 export const WithCategories: Story = {
   args: { availableCategories: CATEGORIES, categoryCounts: CATEGORY_COUNTS },
+};
+
+/** The guided High-and-above filter hides most of Triage, so the tab says how many are showing out of the total. */
+export const FilteredTabCount: Story = {
+  args: {
+    availableCategories: CATEGORIES,
+    categoryCounts: CATEGORY_COUNTS,
+    tabCounts: { triage: 499, action: 5, followUp: 2 },
+    activeTabVisibleCount: 3,
+  },
 };

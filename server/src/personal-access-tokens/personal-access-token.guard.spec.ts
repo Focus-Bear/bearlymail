@@ -64,7 +64,7 @@ describe("PersonalAccessTokenGuard", () => {
     const [name, value] = response.setHeader.mock.calls[0];
     expect(name).toBe("WWW-Authenticate");
     expect(value).toMatch(
-      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:send settings:write"$/,
+      /^Bearer resource_metadata="http:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/mcp", scope="mail:read mail:draft mail:send settings:write"$/,
     );
   });
 

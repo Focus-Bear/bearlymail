@@ -27,6 +27,7 @@ import {
   resolveReplyPerspective,
   toReplyThreadHistory,
 } from "./reply-perspective";
+import { findWeekdayDateMismatch } from "./weekday-date-mismatch.helper";
 
 interface SuggestRepliesBody {
   originalEmail: {
@@ -84,6 +85,9 @@ export class LLMController {
       rules = user?.toneSettings?.rules || [];
     }
 
+    // Deterministic, so it runs even when the user has no tone rules.
+    const dateMismatch = findWeekdayDateMismatch(body.text, body.currentTime);
+
     // If user has no tone settings, skip tone check and return OK
     if (!rules || rules.length === 0) {
       return {
@@ -93,6 +97,7 @@ export class LLMController {
         attachmentReminder: null,
         inappropriateTiming: null,
         recipientMismatch: null,
+        dateMismatch,
       };
     }
 
@@ -107,8 +112,8 @@ export class LLMController {
     });
 
     // Suppress low-significance results — trivial rewording should never block a send.
-    // Preserve attachmentReminder, inappropriateTiming and recipientMismatch even when
-    // isOk is forced true (all three are sender-only fields independent of the tone gate).
+    // Preserve attachmentReminder, inappropriateTiming, recipientMismatch and dateMismatch
+    // even when isOk is forced true (all are sender-only fields independent of the tone gate).
     if (result.significance === "low") {
       return {
         isOk: true,
@@ -117,10 +122,11 @@ export class LLMController {
         attachmentReminder: result.attachmentReminder ?? null,
         inappropriateTiming: result.inappropriateTiming ?? null,
         recipientMismatch: result.recipientMismatch ?? null,
+        dateMismatch,
       };
     }
 
-    return result;
+    return { ...result, dateMismatch };
   }
 
   /**

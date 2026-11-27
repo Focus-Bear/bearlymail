@@ -30,7 +30,7 @@ import { useInboxModeChanges } from 'hooks/useInboxModeChanges';
 import { useInboxTourRefs } from 'hooks/useInboxTourRefs';
 import { useInboxUIState } from 'hooks/useInboxUIState';
 import { useInboxUrlSync } from 'hooks/useInboxUrlSync';
-import { reconcileActiveTabCounts, useTabCounts } from 'hooks/useTabCounts';
+import { getActiveTabVisibleCount, reconcileActiveTabCounts, useTabCounts } from 'hooks/useTabCounts';
 import { useTriageSuggestions } from 'hooks/useTriageSuggestions';
 import { clearCategoryState, setSummaryLoading } from 'store/slices/emailSlice';
 import { AppDispatch } from 'store/store';
@@ -426,6 +426,13 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     onUrlModeChange: handleUrlModeChange,
   });
 
+  const activeTabCountInputs = {
+    counts: tabCounts,
+    mode,
+    summary: loadingModeSwitch ? null : categorySummary,
+    filters: inboxFilters.filters,
+  };
+
   return {
     // State
     mode,
@@ -479,12 +486,8 @@ export function useInboxState(options: UseInboxStateOptions = {}) {
     nextDelivery,
     lastUrgentCheck,
     updateLastUrgentCheck,
-    tabCounts: reconcileActiveTabCounts({
-      counts: tabCounts,
-      mode,
-      summary: loadingModeSwitch ? null : categorySummary,
-      filters: inboxFilters.filters,
-    }),
+    tabCounts: reconcileActiveTabCounts(activeTabCountInputs),
+    activeTabVisibleCount: getActiveTabVisibleCount(activeTabCountInputs),
     fetchTabCounts,
     workAdditionCount,
     // Refs

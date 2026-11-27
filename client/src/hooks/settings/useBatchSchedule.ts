@@ -55,7 +55,7 @@ export const useBatchSchedule = () => {
   const updateBatchSchedule = useCallback(async (schedule: BatchSchedule): Promise<boolean> => {
     try {
       await axios.put(`${API_URL}/batch-schedule`, schedule);
-      setBatchSchedule(schedule);
+      // Only the saved copy: the user may have changed the schedule again while this was in flight.
       setSavedBatchSchedule(schedule);
       return true;
     } catch (error) {
@@ -63,27 +63,6 @@ export const useBatchSchedule = () => {
       return false;
     }
   }, []);
-
-  const addDeliveryTime = useCallback(
-    (time: string) => {
-      if (!time.trim()) {
-        return;
-      }
-      const newTimes = [...batchSchedule.deliveryTimes, time.trim()];
-      updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
-      setNewDeliveryTime('');
-    },
-    [batchSchedule, updateBatchSchedule]
-  );
-
-  const removeDeliveryTime = useCallback(
-    (index: number) => {
-      const newTimes = [...batchSchedule.deliveryTimes];
-      newTimes.splice(index, 1);
-      updateBatchSchedule({ ...batchSchedule, deliveryTimes: newTimes });
-    },
-    [batchSchedule, updateBatchSchedule]
-  );
 
   return {
     batchSchedule,
@@ -93,7 +72,5 @@ export const useBatchSchedule = () => {
     setNewDeliveryTime,
     fetchBatchSchedule,
     updateBatchSchedule,
-    addDeliveryTime,
-    removeDeliveryTime,
   };
 };

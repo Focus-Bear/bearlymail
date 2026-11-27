@@ -55,6 +55,8 @@ export type ProposalDetectionSource =
 export const REPLY_DRAFT_SOURCES = {
   USER: "user",
   AUTO_RESPONDER: "auto_responder",
+  /** Prepared by an AI assistant through the MCP draft tools. */
+  ASSISTANT: "assistant",
 } as const;
 
 export type ReplyDraftSource =

@@ -3,6 +3,7 @@ import { gmail_v1 } from "googleapis";
 import { MAIL_HEADER_NAMES } from "../../../constants/mail-server.constants";
 import { parseAuthenticationResults } from "../../../utils/authentication-results.util";
 import { extractEmailAddress } from "../../../utils/email-address.utils";
+import { stripTags } from "../../../utils/html-strip.util";
 import { decodeRfc2047HeaderValue } from "../../../utils/rfc2047-header.util";
 import { GmailSearchResult } from "../../email-search.types";
 import {
@@ -10,6 +11,7 @@ import {
   RawEmailMessage,
 } from "../../interfaces/email-provider.interface";
 import { hasDraftLabel } from "../../labels.util";
+import { buildUnsubscribeOptions } from "../../unsubscribe/list-unsubscribe.parser";
 
 /**
  * Drop unsent drafts from a Gmail thread / message list. threads.get returns a
@@ -64,6 +66,12 @@ export function parseGmailMessage(
   );
 
   const attachments = extractAttachmentsFromPayload(messageData.payload);
+  const unsubscribeOptions = buildUnsubscribeOptions({
+    listUnsubscribe: getHeader(MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE),
+    listUnsubscribePost: getHeader(MAIL_HEADER_NAMES.LIST_UNSUBSCRIBE_POST),
+    htmlBody,
+    body,
+  });
 
   return {
     messageId: messageData.id,
@@ -75,6 +83,7 @@ export function parseGmailMessage(
     cc,
     replyTo: replyTo ? extractEmailAddress(replyTo) : undefined,
     senderAuthResults,
+    unsubscribeOptions,
     body,
     htmlBody,
     starCount,
@@ -136,7 +145,7 @@ export function extractBodyFromPayload(
   // Ensure body is never empty (DB constraint)
   if (!body || body.trim() === "") {
     if (htmlBody) {
-      body = htmlBody.replace(/<[^>]*>/g, "").trim();
+      body = stripTags(htmlBody).trim();
     }
     if (!body || body.trim() === "") {
       body = snippet || "(No content)";

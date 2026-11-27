@@ -8,6 +8,27 @@ import {
   EmailRecipient,
 } from "../../interfaces/email-provider.interface";
 
+const MIME_TYPE_TOKEN = /^[\w.+-]+\/[\w.+-]+$/;
+const FALLBACK_MIME_TYPE = "application/octet-stream";
+
+/**
+ * Attachment names and types can come from a message being forwarded, so they
+ * are made safe for a quoted MIME header parameter: no quotes, backslashes or
+ * line breaks, and a type that is a plain `type/subtype`.
+ */
+function headerFilename(filename: string | undefined): string {
+  return (filename ?? "").replace(/[\r\n"\\]+/g, "_").trim() || "attachment";
+}
+
+function headerMimeType(mimeType: string | undefined): string {
+  const candidate = (mimeType ?? "").trim();
+  return MIME_TYPE_TOKEN.test(candidate) ? candidate : FALLBACK_MIME_TYPE;
+}
+
+function headerContentId(contentId: string | undefined): string {
+  return (contentId ?? "").replace(/[\r\n<>\s]+/g, "");
+}
+
 /**
  * Build email content with support for attachments and HTML using multipart MIME
  */
@@ -129,10 +150,10 @@ function buildBodyParts(
           base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
         parts.push(
           `--${relatedBoundary}`,
-          `Content-Type: ${img.mimeType}; name="${img.filename}"`,
+          `Content-Type: ${headerMimeType(img.mimeType)}; name="${headerFilename(img.filename)}"`,
           "Content-Transfer-Encoding: base64",
           "Content-Disposition: inline",
-          `Content-ID: <${img.contentId}>`,
+          `Content-ID: <${headerContentId(img.contentId)}>`,
           "",
           chunkedContent,
         );
@@ -187,9 +208,9 @@ function buildAttachmentParts(
       base64Content.match(/.{1,76}/g)?.join("\r\n") || base64Content;
     parts.push(
       `--${mixedBoundary}`,
-      `Content-Type: ${attachment.mimeType}; name="${attachment.filename}"`,
+      `Content-Type: ${headerMimeType(attachment.mimeType)}; name="${headerFilename(attachment.filename)}"`,
       "Content-Transfer-Encoding: base64",
-      `Content-Disposition: attachment; filename="${attachment.filename}"`,
+      `Content-Disposition: attachment; filename="${headerFilename(attachment.filename)}"`,
       "",
       chunkedContent,
     );

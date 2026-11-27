@@ -71,6 +71,26 @@ function queuedResult(queued: QueuedSend, options: SendOptions) {
 }
 
 /**
+ * Addresses a send went to, from its audit metadata. A reply with no explicit
+ * recipients still goes to the original sender, so every send counts as one.
+ */
+function recipientCountOf(metadata: unknown): number {
+  const count = (metadata as { recipientCount?: unknown } | null)
+    ?.recipientCount;
+  return typeof count === "number" && count > 0 ? count : 1;
+}
+
+/** Refuses a message addressed to more people than one message may reach. */
+function assertRecipientTotal(...lists: Array<string[] | undefined>): void {
+  const total = lists.reduce((sum, list) => sum + (list?.length ?? 0), 0);
+  if (total > MCP_SERVER.MAX_RECIPIENTS_PER_MESSAGE) {
+    throw new McpToolInputError(
+      `A message can have at most ${MCP_SERVER.MAX_RECIPIENTS_PER_MESSAGE} addresses across to, cc and bcc`,
+    );
+  }
+}
+
+/**
  * The MCP tools that send mail. Both go through the same background send
  * queue as the web app, so signatures, open tracking, follow-up reminders and
  * failure retries behave identically. Every send is audited, and the audit
@@ -101,6 +121,7 @@ export class McpSendToolsService {
     const to = optionalEmailList(args, "to");
     const cc = optionalEmailList(args, "cc");
     const bcc = optionalEmailList(args, "bcc");
+    assertRecipientTotal(to, cc, bcc);
     const options = parseSendOptions(args);
 
     const email = await this.emailsService.getEmailById(userId, emailId);
@@ -148,6 +169,7 @@ export class McpSendToolsService {
     const body = toSendableHtmlBody(
       requiredString(args, "body", MCP_SERVER.MAX_SEND_BODY_LENGTH),
     );
+    assertRecipientTotal(to, cc, bcc);
     const options = parseSendOptions(args);
 
     const provider = await this.emailProviderManager.getPrimaryProvider(userId);
@@ -216,7 +238,8 @@ export class McpSendToolsService {
         `${MCP_SERVER.SEND_LOCK_PREFIX}${userId}`,
       ]);
       const auditLogs = manager.getRepository(AuditLog);
-      const sentInWindow = await auditLogs.count({
+      const sends = await auditLogs.find({
+        select: { id: true, metadata: true },
         where: {
           userId,
           action: In(MCP_SEND_AUDIT_ACTIONS),
@@ -225,9 +248,21 @@ export class McpSendToolsService {
           ),
         },
       });
-      if (sentInWindow >= MCP_SERVER.SEND_LIMIT_PER_HOUR) {
+      if (sends.length >= MCP_SERVER.SEND_LIMIT_PER_HOUR) {
         throw new McpToolInputError(
           `Send limit reached: at most ${MCP_SERVER.SEND_LIMIT_PER_HOUR} messages per hour can be sent through this connection. Try again later.`,
+        );
+      }
+      const recipientsInWindow = sends.reduce(
+        (total, send) => total + recipientCountOf(send.metadata),
+        0,
+      );
+      if (
+        recipientsInWindow + recipientCountOf(metadata) >
+        MCP_SERVER.SEND_RECIPIENTS_PER_HOUR
+      ) {
+        throw new McpToolInputError(
+          `Recipient limit reached: at most ${MCP_SERVER.SEND_RECIPIENTS_PER_HOUR} addresses per hour can be mailed through this connection. Try again later.`,
         );
       }
 

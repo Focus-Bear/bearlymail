@@ -1,5 +1,6 @@
 import type { AiDecisionProvider } from "../../constants/ai-decision-provider.constants";
 import type { PriorityScoreSource } from "../../constants/priority-rule.constants";
+import type { UnsubscribeMethod } from "../../constants/unsubscribe.constants";
 import { Email } from "../../database/entities/email.entity";
 import { OpenTrackingSummary } from "../../email-tracking/email-tracking.types";
 import { CategorizationSourceKind } from "../category-source.helper";
@@ -48,6 +49,8 @@ export interface InboxEmail extends Email {
   protoCategoryId: string | null;
   protoCategoryName: string | null;
   protoCategoryDescription: string | null;
+  /** How the user can unsubscribe from this email; null when it offers no way. */
+  unsubscribeMethod: UnsubscribeMethod | null;
   // Correspondent fields from lateral join
   correspondentEmail: string | null;
   correspondentName: string | null;

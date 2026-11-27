@@ -6,6 +6,7 @@ import { ReplyFooterSendRequest, ReplySendOptions } from 'types/replySend';
 import { SignaturePreview } from 'components/compose/SignaturePreview';
 import { AttachmentReminderBanner } from 'components/email-detail-inline/AttachmentReminderBanner';
 import { CalendarConflictBanner } from 'components/email-detail-inline/CalendarConflictBanner';
+import { DateMismatchBanner } from 'components/email-detail-inline/DateMismatchBanner';
 import { RecipientMismatchBanner } from 'components/email-detail-inline/RecipientMismatchBanner';
 import { ReplyComposerAttachments } from 'components/email-detail-inline/ReplyComposerAttachments';
 import { ReplyComposerDebugPanel } from 'components/email-detail-inline/ReplyComposerDebugPanel';
@@ -41,6 +42,7 @@ interface ToneCheckResultData {
   inappropriateTiming?: string | null;
   recipientMismatch?: string | null;
   calendarWarning?: string | null;
+  dateMismatch?: string | null;
 }
 interface DisputeResult {
   accepted: boolean;
@@ -73,6 +75,8 @@ interface ReplyComposerProps {
   toneCheckResult: ToneCheckResultData | null;
   sending: boolean;
   initialAttachments?: EmailAttachment[];
+  /** Files saved with a restored draft; they replace the composer's files when they arrive. */
+  restoredFiles?: File[];
   debugInfo?: ReplyGenerationDebugInfo | null;
   currentEmailId?: string;
   currentEmailObjectId?: string;
@@ -175,12 +179,14 @@ interface ReplyComposerStateParams
     | 'onTrackOpensChange'
   > {
   initialAttachments: EmailAttachment[];
+  restoredFiles?: File[];
   /** Account-level open-tracking default the per-message toggle starts from. */
   isTrackingOpensByDefault: boolean;
 }
 
 const useReplyComposerState = ({
   initialAttachments,
+  restoredFiles,
   isTrackingOpensByDefault,
   onClose,
   onSend,
@@ -204,6 +210,12 @@ const useReplyComposerState = ({
       setForwardAttachmentIds(initialAttachments.map(attachment => attachment.attachmentId));
     }
   }, [initialAttachments]);
+
+  useEffect(() => {
+    if (restoredFiles?.length) {
+      setFiles(restoredFiles);
+    }
+  }, [restoredFiles]);
 
   // Keep parent refs in sync so the auto-send countdown handler can read current attachments
   useEffect(() => {
@@ -511,6 +523,7 @@ const ReplyComposerBody: React.FC<ReplyComposerBodyProps> = ({
     <AttachmentReminderBanner attachmentReminder={toneCheckResult?.attachmentReminder} />
     <RecipientMismatchBanner recipientMismatch={toneCheckResult?.recipientMismatch} />
     <CalendarConflictBanner calendarWarning={toneCheckResult?.calendarWarning} />
+    <DateMismatchBanner dateMismatch={toneCheckResult?.dateMismatch} />
     <ToneCheckResult
       toneCheckResult={toneCheckResult}
       onUseRevisedText={onUseRevisedText}
@@ -567,6 +580,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
   toneCheckResult,
   sending,
   initialAttachments,
+  restoredFiles,
   debugInfo,
   currentEmailId,
   currentEmailObjectId,
@@ -622,6 +636,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
     handleUseRevisedText,
   } = useReplyComposerState({
     initialAttachments: attachments,
+    restoredFiles,
     isTrackingOpensByDefault: user?.trackEmailOpens !== false,
     onClose,
     onSend,
@@ -712,7 +727,7 @@ export const ReplyComposer: React.FC<ReplyComposerProps> = ({
 
   return (
     <div
-      className="animate-fade-in"
+      className="animate-fade-in reply-composer"
       onKeyDown={discardGuard.handleEscapeKeyDown}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}

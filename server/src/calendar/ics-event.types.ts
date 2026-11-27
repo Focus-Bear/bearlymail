@@ -43,10 +43,7 @@ export interface IcsEventData {
 
 /** User's RSVP status on a Google Calendar event */
 export type GoogleResponseStatus =
-  | "accepted"
-  | "declined"
-  | "tentative"
-  | "needsAction";
+  "accepted" | "declined" | "tentative" | "needsAction";
 
 /** Response from GET /calendar/ics-info/:emailId/:attachmentId */
 export interface IcsInfoResponse {

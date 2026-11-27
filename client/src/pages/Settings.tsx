@@ -6,6 +6,7 @@ import { theme } from 'theme/theme';
 import { ConfirmModal } from 'components/ConfirmModal';
 import { Sidebar } from 'components/inbox/Sidebar';
 import { AccountDeletionSection } from 'components/settings/AccountDeletionSection';
+import { AdvancedSettings } from 'components/settings/AdvancedSettings';
 import { AnalysisProgressModal } from 'components/settings/AnalysisProgressModal';
 import { AutoResponderSection } from 'components/settings/auto-responder';
 import { ClaudeAccessSection } from 'components/settings/claude-access';
@@ -21,7 +22,7 @@ import { MfaSection } from 'components/settings/MfaSection';
 import { SchedulingPreferencesSection } from 'components/settings/SchedulingPreferencesSection';
 import { SeedTestDataSection, TESTER_EMAIL } from 'components/settings/SeedTestDataSection';
 import { SetPasswordSection } from 'components/settings/SetPasswordSection';
-import { SETTINGS_TAB } from 'components/settings/settings-tabs';
+import { SETTINGS_TAB, type SettingsTabId } from 'components/settings/settings-tabs';
 import { SettingsHeader } from 'components/settings/SettingsHeader';
 import { SettingsTabBar, SettingsTabPanel } from 'components/settings/SettingsTabs';
 import { TeamSettingsSection } from 'components/settings/TeamSettingsSection';
@@ -101,6 +102,13 @@ const Settings: React.FC = () => {
 
   useSettingsAnchorScroll(!settingsData.loading);
   const { activeTab, setActiveTab } = useSettingsTabs(!settingsData.loading);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  // Opening a tab from the sidebar starts at its top, where the tab row is.
+  const selectTabFromSidebar = (tab: SettingsTabId) => {
+    setActiveTab(tab);
+    contentRef.current?.scrollTo({ top: 0 });
+  };
 
   const sidebar = (
     <Sidebar
@@ -111,6 +119,7 @@ const Settings: React.FC = () => {
       onToggleCollapse={toggleCollapse}
       isMobileMenuOpen={isMobileMenuOpen}
       onCloseMobileMenu={closeMobileMenu}
+      settingsTabs={{ activeTab, onSelect: selectTabFromSidebar }}
     />
   );
 
@@ -130,6 +139,7 @@ const Settings: React.FC = () => {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       {sidebar}
       <div
+        ref={contentRef}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -207,8 +217,7 @@ const Settings: React.FC = () => {
           <EmailSignatureSection
             emailSignature={settingsData.emailSignature}
             onSignatureChange={settingsData.setEmailSignature}
-            onSave={settingsData.handleSaveEmailSignature}
-            saving={settingsData.savingSignature}
+            onSave={settingsData.saveEmailSignature}
           />
 
           <EmailTrackingSection />
@@ -313,9 +322,11 @@ const Settings: React.FC = () => {
 
           <DataExportSection />
 
-          {user?.email === TESTER_EMAIL && <SeedTestDataSection />}
+          <AdvancedSettings summary={t('settings.advanced.account')}>
+            {user?.email === TESTER_EMAIL && <SeedTestDataSection />}
 
-          <TroubleshootingSection />
+            <TroubleshootingSection />
+          </AdvancedSettings>
 
           <AccountDeletionSection
             connectedProviders={buildAllAccounts(

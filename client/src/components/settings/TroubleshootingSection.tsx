@@ -6,9 +6,8 @@ import { theme } from 'theme/theme';
 import { COLOR_NAMED_WHITE } from 'constants/colors';
 import { EMOJI_WRENCH } from 'constants/emojis';
 import { KEY_ENTER, KEY_SPACE } from 'constants/strings';
+import { REPLAY_TOUR_PATH } from 'constants/tour';
 import { useDebugMode } from 'hooks/useDebugMode';
-
-const REPLAY_TOUR_PATH = '/inbox?replayTour=true';
 
 const SettingRow: React.FC<{ label: string; description: string; control: React.ReactNode; marginTop?: string }> = ({
   label,

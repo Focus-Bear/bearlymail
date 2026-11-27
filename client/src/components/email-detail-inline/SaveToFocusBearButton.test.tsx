@@ -33,6 +33,9 @@ const SOURCE = {
 const TITLE = 'Complete the evaluation form for Utsav';
 // Friday 13 November 2026, mid-morning.
 const NOW = new Date(2026, 10, 13, 10, 30);
+// Early morning in Melbourne, when UTC is still on the previous day.
+const MELBOURNE_TIME_ZONE = 'Australia/Melbourne';
+const MELBOURNE_HOUR_BEFORE_UTC_MIDNIGHT = 8;
 
 const SUGGESTIONS: FocusBearTaskSuggestions = {
   connected: true,
@@ -124,6 +127,7 @@ describe('SaveToFocusBearButton', () => {
     expect(brandmarkButton()).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateNextFree' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateNextFree' })).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateToday' })).not.toBeChecked();
     expect(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateCustom' })).not.toBeChecked();
     expect(dialog).toHaveClass(POSTHOG_NO_CAPTURE_CLASS);
     await waitFor(() =>
@@ -147,6 +151,53 @@ describe('SaveToFocusBearButton', () => {
       expect.objectContaining({ hasDueDate: false, dueDateNextFree: true, projectSuggested: true, hasDuration: false })
     );
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('offers Today between the next free spot and Custom, reachable with the arrow keys', async () => {
+    const user = userEvent.setup();
+    await openPanel();
+
+    const radios = screen.getAllByRole('radio').map(radio => radio.getAttribute('value'));
+    expect(radios).toEqual(['nextFree', 'today', 'custom']);
+
+    await user.keyboard('{ArrowRight}');
+
+    expect(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateToday' })).toBeChecked();
+    expect(screen.getByText('emailDetail.focusBearTodayHint')).toBeVisible();
+    expect(screen.queryByRole('textbox', { name: 'emailDetail.focusBearCustomDueDate' })).toBeNull();
+  });
+
+  it("saves Today with today's date as the due date", async () => {
+    const user = userEvent.setup();
+    await openPanel();
+
+    await user.click(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateToday' }));
+    fireEvent.click(saveButton());
+
+    expect(assign).toHaveBeenCalledTimes(1);
+    expect(savedParams().get('due_date')).toBe('2026-11-13');
+    expect(captureEvent).toHaveBeenCalledWith(
+      ANALYTICS_EVENTS.ACTION_ITEM_SAVED_TO_FOCUS_BEAR,
+      expect.objectContaining({ hasDueDate: true, dueDateNextFree: false })
+    );
+  });
+
+  it("saves Today as the user's own day, not the UTC one", async () => {
+    // Tests run in UTC, where the two days never differ.
+    vi.stubEnv('TZ', MELBOURNE_TIME_ZONE);
+    try {
+      vi.setSystemTime(new Date(2026, 10, 13, MELBOURNE_HOUR_BEFORE_UTC_MIDNIGHT));
+      expect(new Date().toISOString().slice(0, 10)).toBe('2026-11-12');
+      const user = userEvent.setup();
+      await openPanel();
+
+      await user.click(screen.getByRole('radio', { name: 'emailDetail.focusBearDueDateToday' }));
+      fireEvent.click(saveButton());
+
+      expect(savedParams().get('due_date')).toBe('2026-11-13');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('reads a custom day typed snooze-style, shows it, and Enter saves it with the duration', async () => {

@@ -65,6 +65,10 @@ export interface PhishingSignals {
   linkTextMismatches: string[];
   /** Account-threat phrases ("act to restore access", …) */
   accountThreats: string[];
+  /** Account-security pretexts ("if this was not you", "two-factor settings", …) */
+  securityLures: string[];
+  /** Link domains unrelated to the brand an impersonating display name claims */
+  offBrandLinkDomains: string[];
   /** Deterministic red flags; any of them stops Jev from clearing the email */
   redFlags: PhishingRedFlag[];
   /**
@@ -337,6 +341,8 @@ export const EMPTY_PHISHING_SIGNALS: PhishingSignals = {
   senderAuthSummary: "",
   linkTextMismatches: [],
   accountThreats: [],
+  securityLures: [],
+  offBrandLinkDomains: [],
   redFlags: [],
   deterministicVerdict: null,
 };
@@ -400,6 +406,8 @@ export function extractPhishingSignals(
       formatLinkTextMismatch,
     ),
     accountThreats: assessment.accountThreats,
+    securityLures: assessment.securityLures,
+    offBrandLinkDomains: assessment.offBrandLinkDomains,
     redFlags: assessment.redFlags,
     deterministicVerdict: assessment.verdict,
   };
@@ -436,6 +444,11 @@ export function mergePhishingSignalSets(
       signalB.linkTextMismatches,
     ),
     accountThreats: union(signalA.accountThreats, signalB.accountThreats),
+    securityLures: union(signalA.securityLures, signalB.securityLures),
+    offBrandLinkDomains: union(
+      signalA.offBrandLinkDomains,
+      signalB.offBrandLinkDomains,
+    ),
     redFlags: union(signalA.redFlags, signalB.redFlags),
     deterministicVerdict: mergePhishingSignals(
       signalA.deterministicVerdict,

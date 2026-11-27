@@ -6,6 +6,7 @@ import { Repository } from "typeorm";
 
 import { safeAxiosConfig } from "../common/safe-http/safe-http";
 import { assertSafeOutboundUrl } from "../common/url-validation.utils";
+import { MILLISECONDS } from "../constants/time-constants";
 import {
   MCP_AUTH_TYPES,
   MCPOAuthMetadata,
@@ -18,6 +19,27 @@ const HTTP_TIMEOUT_MS = 15_000;
 const TOKEN_EXPIRY_SKEW_MS = 60_000;
 const VERIFIER_BYTES = 32;
 const STATE_BYTES = 24;
+const STATE_TIME_RADIX = 36;
+/** How long a started authorization may take to come back. */
+const STATE_TTL_MINUTES = 10;
+const STATE_TTL_MS = STATE_TTL_MINUTES * MILLISECONDS.MINUTE;
+
+/** True when `state` carries an issue time within the last STATE_TTL_MS. */
+function isFreshState(state: string): boolean {
+  const issuedAt = parseInt(state.split(".")[1] ?? "", STATE_TIME_RADIX);
+  if (!Number.isFinite(issuedAt)) return false;
+  const age = Date.now() - issuedAt;
+  return age >= 0 && age <= STATE_TTL_MS;
+}
+
+/**
+ * Value of the browser-binding cookie for an authorization `state`. Only the
+ * browser that called the start endpoint holds it, so a start link handed to
+ * someone else cannot complete in their browser.
+ */
+export function bindingValueForState(state: string): string {
+  return createHash("sha256").update(state).digest("base64url");
+}
 const MS_PER_SECOND = 1000;
 /** Fallback access-token lifetime when the server omits expires_in (RFC 6749). */
 const DEFAULT_EXPIRES_IN_SECONDS = 3600;
@@ -84,7 +106,9 @@ export class MCPOAuthService {
     const codeChallenge = base64url(
       createHash("sha256").update(codeVerifier).digest(),
     );
-    const state = base64url(randomBytes(STATE_BYTES));
+    // The issue time rides in the state so a start link stops working after
+    // STATE_TTL_MS; the value is stored whole and matched exactly on return.
+    const state = `${base64url(randomBytes(STATE_BYTES))}.${Date.now().toString(STATE_TIME_RADIX)}`;
 
     await this.configRepo.update(config.id, {
       oauthMetadata: metadata,
@@ -113,6 +137,9 @@ export class MCPOAuthService {
     state: string,
     code: string,
   ): Promise<MCPServerConfig> {
+    if (!isFreshState(state)) {
+      throw new Error("Invalid or expired OAuth state");
+    }
     const config = await this.configRepo.findOne({
       where: { oauthAuthState: state },
     });

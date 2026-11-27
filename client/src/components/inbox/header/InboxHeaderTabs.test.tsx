@@ -7,7 +7,12 @@ import { InboxHeaderTabs } from './InboxHeaderTabs';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, options?: { count?: number }) => (options?.count === undefined ? key : `${key}:${options.count}`),
+    t: (key: string, options?: { count?: number; visible?: number; total?: number }) => {
+      if (options?.visible !== undefined) {
+        return `${key}:${options.visible}/${options.total}`;
+      }
+      return options?.count === undefined ? key : `${key}:${options.count}`;
+    },
   }),
 }));
 vi.mock('utils/posthog', () => ({ captureEvent: vi.fn() }));
@@ -74,5 +79,34 @@ describe('InboxHeaderTabs — moved-to-Action feedback', () => {
 
     fireAnimationEnd(actionTab());
     expect(onActionTabEmphasisEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('InboxHeaderTabs — filtered count', () => {
+  const tabCounts = { triage: 499, action: 4, followUp: 2 };
+
+  function triageTab(): HTMLElement {
+    return screen.getByText(/inbox\.(triageTab|tabCount)/).closest('button') as HTMLElement;
+  }
+
+  it('shows "N of M" on the active tab while a filter hides some of its emails', () => {
+    renderTabs({ tabCounts, activeTabVisibleCount: 3 });
+
+    expect(triageTab()).toHaveTextContent('inbox.tabCount.filtered:3/499');
+    expect(triageTab()).toHaveAttribute('title', 'inbox.tabCount.filteredHint:3/499');
+  });
+
+  it('keeps the plain count on the inactive tabs', () => {
+    renderTabs({ tabCounts, activeTabVisibleCount: 3 });
+
+    const action = screen.getByText('inbox.actionTab (4)').closest('button');
+    expect(action).not.toHaveAttribute('title');
+  });
+
+  it('shows the plain count when nothing is hidden', () => {
+    renderTabs({ tabCounts, activeTabVisibleCount: null });
+
+    expect(triageTab()).toHaveTextContent('inbox.triageTab (499)');
+    expect(triageTab()).not.toHaveAttribute('title');
   });
 });

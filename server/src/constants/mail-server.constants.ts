@@ -40,4 +40,6 @@ export const GMAIL_SEARCH_VALUES = {
 export const MAIL_HEADER_NAMES = {
   REPLY_TO: "Reply-To",
   AUTHENTICATION_RESULTS: "Authentication-Results",
+  LIST_UNSUBSCRIBE: "List-Unsubscribe",
+  LIST_UNSUBSCRIBE_POST: "List-Unsubscribe-Post",
 } as const;

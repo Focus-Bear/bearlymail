@@ -39,6 +39,10 @@ Settings → Connect Claude lists OAuth connections ("Claude (claude.ai)") along
 | `list_follow_ups` | `mail:read` | Messages awaiting a reply, whether each is due, and whether the recipient opened it |
 | `send_reply` | `mail:send` | Reply in a thread. `trackOpens`, `followUpInDays`, optional `to`/`cc`/`bcc` |
 | `send_email` | `mail:send` | New email. `to`/`cc`/`bcc`, `subject`, `body`, `trackOpens`, `followUpInDays` |
+| `create_draft` | `mail:draft` or `mail:send` | Saves a draft in BearlyMail for the user to review and send; never sends. `body` (required), `replyToEmailId` (reply in that thread) or `to` + `subject` (new message), optional `cc`/`bcc`/`attachments`. Returns `draftId` and a `url` that opens it |
+| `update_draft` | `mail:draft` or `mail:send` | Changes only the fields passed on a draft the assistant created. `attachments` replaces the list (`[]` removes them) |
+| `list_drafts` | `mail:read` | Every unsent draft (reply and new), newest first, with a text body, a link, and `isEditableByAssistant` |
+| `delete_draft` | `mail:draft` or `mail:send` | Deletes a draft the assistant created |
 | `list_categories` | `mail:read` | Email categories with descriptions and rule / enabled-rule counts |
 | `get_category` | `mail:read` | One category and every rule that files into it |
 | `list_rules` | `mail:read` | Category rules (`categoryId` / `isEnabled` filters): conditions, enabled flag, `hitCount`, whether the category still exists |
@@ -54,22 +58,23 @@ Settings → Connect Claude lists OAuth connections ("Claude (claude.ai)") along
 Bodies are plain text; the user's signature (and, for replies, the quoted message) is added the same way as in the web app. Sends go through the normal background send queue (`EmailSendQueueService`), so tracking, follow-ups, retries and Pusher events behave identically.
 
 - **Open tracking** is BearlyMail's tracking pixel. It's plan-gated and skipped when the backend isn't publicly reachable. `trackOpens` omitted means "use the account setting". This isn't an RFC 8098 read receipt (`Disposition-Notification-To`), which most clients ignore.
+- **Drafts** live in BearlyMail's own `reply_drafts` table, the same store the reply composer autosaves to; they are not pushed to the Gmail/Outlook drafts folder (nor are drafts saved in the web app). A reply draft opens in its thread's reply composer and flags the thread "Reply draft ready" in the inbox; a new-message draft opens in Compose (`/compose?draftId=…`) and is deleted once sent. BearlyMail keeps one reply draft per thread, so `create_draft` refuses a thread that already has one. An assistant can only change or delete drafts it wrote and the user hasn't edited since. Attachments are `{ filename, mimeType, contentBase64 }`, at most 10 per draft and 10 MB in total; `/mcp` accepts request bodies up to 15 MB for them.
 - **Categories and rules** go through the same services and validation as Settings (`ContextService`, `CategoryRulesService` with `CreateCompositeCategoryRuleDto` / `PatchCategoryRuleDto`), so an MCP write can't do anything a Settings save can't. Rule conditions use the stored v3 names (`fromMatchesAny`, `subjectContainsAny`, …) for every spec version, so what `list_rules` returns can be passed straight back. Rules have no manual order: the most specific matching composite rule wins. Example cleanup: `list_rules` → `set_rules_enabled({ ruleIds, isEnabled: false, dryRun: true })` → show the user → call again without `dryRun`.
 - **Follow-ups** take whole days (`followUpInDays`, 1–90) rather than free text. The free-text duration parser silently falls back to one hour on input it can't parse, and follow-ups are stored at day granularity anyway.
 
 ## Safety model
 
 - Email content is untrusted input that can carry prompt injection. Mitigations:
-  - Read and send are separate scopes, and a read-only token isn't even shown the send tools.
-  - Editing categories and rules is a third scope, `settings:write`, off by default on the consent page and the token form. Without it the write tools aren't listed. Reading them needs only `mail:read`, since they're derived from mail that scope already reads.
+  - Read, draft and send are separate scopes, and a token isn't even shown the tools its scopes don't cover. `mail:draft` lets an assistant prepare messages without being able to send anything; `mail:send` includes it.
+  - Editing categories and rules is another scope, `settings:write`, off by default on the consent page and the token form. Without it the write tools aren't listed. Reading them needs only `mail:read`, since they're derived from mail that scope already reads.
   - Send tools and the overwriting/deleting settings tools carry `destructiveHint: true`, so clients ask before calling them. `delete_category`, `delete_rules` and `set_rules_enabled` take `dryRun`, and their descriptions tell the model to dry-run and confirm first.
   - The server instructions tell the model never to follow instructions found inside emails, and that category/rule content is user data, not instructions.
   - Every settings tool starts from the caller's own categories/rules, so another user's id is "not found" before any write (the services also scope every query by user).
 - `/mcp` accepts **only** a bearer token: a personal access token (`bm_pat_…`) or an OAuth access token (`bm_oat_…`). It ignores the session cookie, so a logged-in browser tab can't drive it and it needs no CSRF protection. Tokens can't create or revoke tokens (those endpoints are JWT-only).
 - Only the SHA-256 hash of each 256-bit secret (tokens, refresh tokens, authorization codes) is stored.
-- Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends per user per hour.
+- Each MCP send is written to `audit_logs` (`MCP_SEND_REPLY` / `MCP_SEND_EMAIL`, with token id and recipient count, never content). That trail also enforces a cap of 30 MCP sends and 150 recipient addresses per user per hour; one message can have at most 50 addresses across to, cc and bcc. Category and rule changes are capped at 60 per user per hour the same way.
 - Each MCP settings change is written to `audit_logs` too (`MCP_CATEGORY_*`, `MCP_RULE_*`, `MCP_RULES_*`), with the before/after values in the encrypted metadata so a change can be undone by hand. Dry runs aren't logged.
-- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Creating a token or approving a connection asks for the password again (declining doesn't). Token creation and revocation are audited too.
+- `/mcp` allows 120 requests per minute per user, counted after the token is checked. Failed authentications are limited separately, to 30 per minute per client address. Messages in a JSON-RPC batch run one at a time. Creating a token or approving a connection asks for the password again (declining doesn't). Token creation and revocation are audited too.
 
 ## Protocol notes
 
@@ -81,7 +86,7 @@ BearlyMail is its own OAuth 2.1 authorization server for `/mcp`, following the [
 
 | Endpoint | Purpose |
 | --- | --- |
-| `401` from `/mcp` | `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp", scope="mail:read mail:send settings:write"`. Claude only starts sign-in from a 401 |
+| `401` from `/mcp` | `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp", scope="mail:read mail:draft mail:send settings:write"`. Claude only starts sign-in from a 401 |
 | `GET /.well-known/oauth-protected-resource[/mcp]` | RFC 9728: `resource` = `<api-origin>/mcp`, `authorization_servers` = `[<api-origin>]` |
 | `GET /.well-known/oauth-authorization-server` | RFC 8414, with `client_id_metadata_document_supported: true` and `token_endpoint_auth_methods_supported: ["none"]`. Claude needs both before it will use CIMD |
 | `GET /oauth/authorize` | Validates the client, redirect URI, S256 PKCE, `resource` (RFC 8707) and scope. Parks the request, then 302s to the web app's `/oauth/consent?request=…` |
@@ -92,7 +97,7 @@ BearlyMail is its own OAuth 2.1 authorization server for `/mcp`, following the [
 
 **Client registration.** Clients that send an HTTPS URL as `client_id` (claude.ai, Claude Code) use a Client ID Metadata Document. BearlyMail fetches it over HTTPS only, from public IPs only (the vetted address is the one connected to), with no redirects, a 5 s timeout and a 16 KiB cap. The document's `client_id` must equal its URL, and it's cached for 5 minutes. Any other client registers through `/oauth/register` (stored in `oauth_clients`). Redirect URIs match exactly, except loopback ones, which match on any port (RFC 8252 §7.3), so Claude Code's ephemeral `http://localhost:<port>/callback` works. The hosted Claude apps use `https://claude.ai/api/mcp/auth_callback`.
 
-**Consent.** The page runs in the web app behind the normal login. A logged-out user is sent to `/login` and brought back afterwards, including after Google/Microsoft sign-in. It names the client and, prominently, the host the code will be sent to. Client names are self-asserted, so the page warns when the redirect is a loopback address. Read only is the default. Send is offered only when the client asked for `mail:send`, and "Also edit categories and rules" only when it asked for `settings:write`. The page refuses to render inside a frame, and the decision endpoint is protected by the SameSite=Strict session cookie.
+**Consent.** The page runs in the web app behind the normal login. A logged-out user is sent to `/login` and brought back afterwards, including after Google/Microsoft sign-in. It names the client and, prominently, the host the code will be sent to. Client names are self-asserted, so the page warns when the redirect is a loopback address. Read only is the default. Drafts are offered when the client asked for `mail:draft` or `mail:send`, send only when it asked for `mail:send`, and "Also edit categories and rules" only when it asked for `settings:write`. The page refuses to render inside a frame, and the decision endpoint is protected by the SameSite=Strict session cookie.
 
 **Tokens.** An approved connection is a `personal_access_tokens` row with `kind = 'oauth'`. It resolves to the same `PatPrincipal` as a PAT, so the MCP tools and scope checks are unchanged. Access tokens (`bm_oat_…`) last 1 hour. Refresh tokens (`bm_ort_…`) rotate on every use, conditionally on the old hash so two concurrent refreshes can't both win, with a 30-day idle lifetime. Authorization codes (`bm_oac_…`) are single-use and live 60 s. A replayed code revokes the connection it produced. Rows in `oauth_authorization_codes` older than a day are pruned. OAuth connections count towards the 20-per-user token cap, which is checked on the consent page.
 

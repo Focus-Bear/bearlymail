@@ -4,13 +4,13 @@ import { FiArchive, FiClock, FiCornerUpLeft, FiCornerUpRight, FiDownload, FiPrin
 import { theme } from 'theme/theme';
 import { Email } from 'types/email';
 import { captureEvent } from 'utils/posthog';
-import { extractUnsubscribeLink } from 'utils/unsubscribeUtils';
 
 import { OverflowMenu } from 'components/common/OverflowMenu';
 import { EmailSchedulingCards } from 'components/email-detail/EmailSchedulingCards';
 import { PrintableThread } from 'components/email-detail/PrintableThread';
 import { QuickActionsSection } from 'components/email-detail/QuickActionsSection';
 import { SnoozeInputForm } from 'components/inbox/actions/SnoozeInputForm';
+import { UnsubscribeDialogs } from 'components/inbox/actions/UnsubscribeDialogs';
 import { PriorityChip } from 'components/priority/PriorityChip';
 import { SuggestedAction } from 'components/quick-actions/QuickActionsMenu';
 import { ANALYTICS_EVENTS } from 'constants/analytics-events';
@@ -26,6 +26,7 @@ import {
 } from 'constants/strings';
 import { useEmlDownload } from 'hooks/useEmlDownload';
 import { useResponsiveBreakpoints } from 'hooks/useResponsiveBreakpoints';
+import { useUnsubscribeFlow } from 'hooks/useUnsubscribeFlow';
 
 interface EmailDetailActionsProps {
   email: Email;
@@ -156,6 +157,8 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
   const [showSnoozeInput, setShowSnoozeInput] = useState(false);
   const [snoozeValue, setSnoozeValue] = useState('');
   const downloadEml = useEmlDownload();
+  const unsubscribeFlow = useUnsubscribeFlow({ email, onArchiveEmail: onArchive });
+  const canUnsubscribe = unsubscribeFlow.action !== null;
   const overflowMenuItems = useMemo(
     () => [
       {
@@ -170,22 +173,21 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
         icon: <FiDownload size={OVERFLOW_ICON_SIZE} />,
         onClick: () => void downloadEml(email.id),
       },
+      // Unsubscribe takes the toolbar slot Block sender otherwise has, so Block moves in here.
+      ...(canUnsubscribe
+        ? [
+            {
+              key: 'blockSender',
+              label: t('inbox.blockSender'),
+              icon: <span aria-hidden>{EMOJI_BLOCK}</span>,
+              onClick: () => onBlockSender(email.id),
+            },
+          ]
+        : []),
     ],
-    [t, downloadEml, email.id]
+    [t, downloadEml, email.id, canUnsubscribe, onBlockSender]
   );
   const starCount = email?.starCount ?? 0;
-
-  const unsubscribeLink = useMemo(() => {
-    return extractUnsubscribeLink(email.htmlBody, email.body);
-  }, [email]);
-
-  const handleUnsubscribeClick = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (unsubscribeLink) {
-      window.open(unsubscribeLink, '_blank', 'noopener,noreferrer');
-      captureEvent(ANALYTICS_EVENTS.EMAIL_UNSUBSCRIBE_CLICKED, { email_id: email.id });
-    }
-  };
 
   // ── Shared action buttons ──────────────────────────────────────────────────
 
@@ -245,11 +247,14 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
     </ActionButton>
   );
 
-  const unsubscribeOrBlockButton = unsubscribeLink ? (
+  const unsubscribeOrBlockButton = canUnsubscribe ? (
     <ActionButton
       mobile={isMobile}
       variant="ghost"
-      onClick={handleUnsubscribeClick}
+      onClick={event => {
+        event.stopPropagation();
+        unsubscribeFlow.start();
+      }}
       title={t('inbox.unsubscribe')}
       extraStyle={{
         opacity: OPACITY_DISABLED,
@@ -422,6 +427,7 @@ export const EmailDetailActions: React.FC<EmailDetailActionsProps> = ({
 
       {/* Print-only thread renderer — mounted only while printing (see PrintableThread) */}
       <PrintableThread email={email} threadEmails={threadEmails} />
+      <UnsubscribeDialogs flow={unsubscribeFlow} />
     </div>
   );
 };

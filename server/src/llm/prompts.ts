@@ -110,6 +110,7 @@ export const UTILITY_PROMPT_IDS = {
   SUGGEST_CATEGORY_RULES: "suggest_category_rules",
   CATEGORISE_SUMMARY: "categorise_summary",
   CATEGORISE_SUMMARY_JEV: "categorise_summary_jev",
+  CATEGORISE_SUMMARY_JEV_FAMILY: "categorise_summary_jev_family",
   SUGGEST_PROTO_CATEGORY: "suggest_proto_category",
   IDENTIFY_CUSTOM_LABELS: "identify_custom_labels",
   DERIVE_RULE_EXCLUSIONS: "derive_rule_exclusions",
@@ -252,6 +253,10 @@ const PROMPT_FILE_MAP: Array<{
   {
     file: "categorise-summary-jev.md",
     key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY_JEV,
+  },
+  {
+    file: "categorise-summary-jev-family.md",
+    key: UTILITY_PROMPT_IDS.CATEGORISE_SUMMARY_JEV_FAMILY,
   },
   {
     file: "suggest-proto-category.md",

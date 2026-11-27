@@ -1,10 +1,11 @@
-import { JEV } from "../constants/jev.constants";
+import { JEV, JEV_TWO_STAGE } from "../constants/jev.constants";
 import { PERCENTAGES } from "../constants/percentages";
 import { ENV_BOOLEAN_STRING } from "../constants/service-constants";
 import type {
   LoggerPort,
   TokenUsageSink,
 } from "../shared/email-intelligence/ports";
+import { isTwoStageWorthwhile } from "./jev-category-families";
 import {
   buildJevCategoryRequest,
   type JevCategoryAnswer,
@@ -19,6 +20,11 @@ import {
   type FamilyConfidence,
   topFamilyConfidence,
 } from "./jev-family-confidence";
+import {
+  type AskJev,
+  categoriseInTwoStages,
+  TWO_STAGE_OUTCOMES,
+} from "./jev-two-stage-category";
 import type {
   CategoriseFromSummaryParams,
   CategoriseFromSummaryResult,
@@ -26,12 +32,20 @@ import type {
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 import { isAuthFailure, type JevCredentials } from "./user-ai-routing";
 
-/** Jev's below-threshold pick, reported only so agreement with the fallback can be measured. */
+/** Jev's below-threshold pick, reported so agreement with the fallback can be measured. */
 export interface JevDeclinedPick {
-  categoryName: string;
+  /** Null when two-stage Jev declined at the family, before naming a category. */
+  categoryName: string | null;
   confidence: number;
   /** Jev's most probable family; null when Jev returned no probabilities. */
   family: FamilyConfidence | null;
+  /** Log label for the shadow record; defaults to single-stage categorisation. */
+  decision?: string;
+  /**
+   * Two-stage only: Jev was sure of the family but not the category, so the
+   * fallback may choose among just these categories.
+   */
+  narrowToCategoryNames?: string[];
 }
 
 export class JevCategoryClient {
@@ -58,23 +72,24 @@ export class JevCategoryClient {
     )
       return null;
     try {
-      const request = buildJevCategoryRequest(
-        params,
-        this.getConfig(JEV.MODEL_ENV) || JEV.DEFAULT_MODEL,
+      const model = this.getConfig(JEV.MODEL_ENV) || JEV.DEFAULT_MODEL;
+      const askJev: AskJev = (request, questionId) =>
+        this.askJev(request, questionId, credentials.apiKey, params.userId);
+      if (this.isTwoStageEnabled() && isTwoStageWorthwhile(params.categories)) {
+        const outcome = await categoriseInTwoStages({
+          params,
+          model,
+          askJev,
+          logger: this.logger,
+        });
+        if (outcome.kind === TWO_STAGE_OUTCOMES.ACCEPTED) return outcome.result;
+        if (outcome.pick) onDeclined?.(outcome.pick);
+        return null;
+      }
+      const answer = await askJev(
+        buildJevCategoryRequest(params, model),
+        JEV.QUESTION_ID,
       );
-      const startedAt = Date.now();
-      const response = await requestJevCategory(request, credentials.apiKey);
-      await this.tokenUsage.logUsage({
-        userId: params.userId,
-        operation: LLM_OP_CATEGORISE_SUMMARY,
-        provider: JEV.PROVIDER,
-        model: response.model,
-        promptTokens: response.usage.input_tokens,
-        completionTokens: response.usage.output_tokens,
-        totalTokens: response.usage.input_tokens + response.usage.output_tokens,
-        durationMs: Date.now() - startedAt,
-      });
-      const answer = response.answers[JEV.QUESTION_ID];
       const isAccepted = answer.confidence >= JEV.MIN_ACCEPTED_CONFIDENCE;
       const family = topFamilyConfidence(answer.probabilities ?? {}, (choice) =>
         categoryNameForChoice(choice, params),
@@ -102,6 +117,36 @@ export class JevCategoryClient {
       );
       return null;
     }
+  }
+
+  private isTwoStageEnabled(): boolean {
+    return (
+      this.getConfig(JEV_TWO_STAGE.ENABLED_ENV) === ENV_BOOLEAN_STRING.TRUE
+    );
+  }
+
+  /** One Jev Choice call, with its token usage logged under categorisation. */
+  private async askJev(
+    request: Parameters<AskJev>[0],
+    questionId: string,
+    apiKey: string,
+    userId: string | undefined,
+  ): Promise<JevCategoryAnswer> {
+    const startedAt = Date.now();
+    const response = await requestJevCategory(request, apiKey);
+    await this.tokenUsage.logUsage({
+      userId,
+      operation: LLM_OP_CATEGORISE_SUMMARY,
+      provider: JEV.PROVIDER,
+      model: response.model,
+      promptTokens: response.usage.input_tokens,
+      completionTokens: response.usage.output_tokens,
+      totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+      durationMs: Date.now() - startedAt,
+    });
+    const answer = response.answers[questionId];
+    if (!answer) throw new Error("Jev returned no answer to the question");
+    return answer;
   }
 
   private logConfidence(

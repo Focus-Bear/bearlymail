@@ -11,6 +11,10 @@ import {
 } from "../../constants/domain-statuses";
 import { OAUTH_ERROR_CODES } from "../../constants/domain-types";
 import { ERROR_MESSAGES } from "../../constants/error-messages";
+import {
+  GOOGLE_PERMISSION_GROUP,
+  hasGooglePermission,
+} from "../../constants/google-oauth-scopes";
 import { HTTP_STATUS } from "../../constants/http-status";
 import { INJECT_TOKENS } from "../../constants/inject-tokens";
 import { JOB_NAMES } from "../../constants/job-names";
@@ -388,6 +392,7 @@ export class GmailSyncService {
     message: gmail_v1.Schema$Message,
     starCount: number,
     createEmailOptions: CreateEmailOptions,
+    canWriteToGmail: boolean,
   ): Promise<void> {
     if (hasDraftLabel(message.labelIds)) {
       // An unsent draft is not mail. Older syncs stored drafts like sent
@@ -404,7 +409,9 @@ export class GmailSyncService {
       message.id!,
     );
     if (existing) {
-      const updates = buildStoredGmailEmailUpdates(existing, rawEmail);
+      const updates = buildStoredGmailEmailUpdates(existing, rawEmail, {
+        canWriteToGmail,
+      });
       if (Object.keys(updates).length > 0) {
         await this.emailsService.updateEmail(userId, existing.id, updates);
       }
@@ -442,6 +449,11 @@ export class GmailSyncService {
   }> {
     const starUpdates: { threadId: string; starCount: number }[] = [];
     const archivedUpdates: { threadId: string; isArchived: boolean }[] = [];
+    const user = await this.usersService.findOneWithTokens(userId);
+    const canWriteToGmail = hasGooglePermission(
+      user?.googleGrantedScopes,
+      GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+    );
     const BATCH_SIZE = 5;
     const MAX_THREADS = QUERY_LIMITS.INBOX_TOTAL;
 
@@ -484,6 +496,7 @@ export class GmailSyncService {
                 message,
                 starCount,
                 createEmailOptions,
+                canWriteToGmail,
               );
             }
           } catch (error) {

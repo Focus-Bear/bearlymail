@@ -202,3 +202,39 @@ export async function lookupGmailThreadByIds(
   }
   return null;
 }
+
+export interface GmailUrlLookupResult {
+  hit: GmailLookupHit | null;
+  diagnostics: {
+    connectedEmail: string | null;
+    idsTried: string[];
+    attempts: GmailLookupAttempt[];
+  };
+}
+
+/**
+ * Resolves the id from a Gmail web URL as a message first, then as a thread.
+ * The connected address is diagnostic only, so failing to read it is reported
+ * through `onProfileError` rather than failing the lookup.
+ */
+export async function lookupGmailUrlId(
+  gmail: gmail_v1.Gmail,
+  urlId: string,
+  onProfileError: (error: unknown) => void,
+): Promise<GmailUrlLookupResult> {
+  const idsTried = buildGmailUrlIdsToTry(urlId);
+  const attempts: GmailLookupAttempt[] = [];
+
+  let connectedEmail: string | null = null;
+  try {
+    const profile = await gmail.users.getProfile({ userId: "me" });
+    connectedEmail = profile.data.emailAddress ?? null;
+  } catch (error) {
+    onProfileError(error);
+  }
+
+  const hit =
+    (await lookupGmailMessageByIds(gmail, idsTried, attempts)) ??
+    (await lookupGmailThreadByIds(gmail, idsTried, attempts));
+  return { hit, diagnostics: { connectedEmail, idsTried, attempts } };
+}

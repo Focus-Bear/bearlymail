@@ -11,6 +11,7 @@ import { EmailTrackingModule } from "../email-tracking/email-tracking.module";
 import { EmailsModule } from "../emails/emails.module";
 import { FollowUpsModule } from "../follow-ups/follow-ups.module";
 import { PersonalAccessTokensModule } from "../personal-access-tokens/personal-access-tokens.module";
+import { UsersModule } from "../users/users.module";
 import { McpAuthFailureGuard } from "./mcp-auth-failure.guard";
 import { McpCategoryToolsService } from "./mcp-category-tools.service";
 import { McpDraftToolsService } from "./mcp-draft-tools.service";
@@ -40,6 +41,7 @@ import { McpSettingsWriteLimiter } from "./mcp-settings-write-limiter.service";
     AskAiModule,
     CategoryRulesModule,
     ContextModule,
+    UsersModule,
   ],
   controllers: [McpServerController],
   providers: [

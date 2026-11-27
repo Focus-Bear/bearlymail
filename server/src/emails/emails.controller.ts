@@ -37,6 +37,7 @@ import type { PgBoss } from "pg-boss";
 
 import { AuditService } from "../audit/audit.service";
 import { EmailProviderRequiredGuard } from "../auth/email-provider-required.guard";
+import { RequireGmailManagePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BatchScheduleService } from "../batch-schedule/batch-schedule.service";
 import { isUuid } from "../common/uuid.utils";
@@ -46,6 +47,7 @@ import {
 } from "../constants/domain-types";
 import { EML_DOWNLOAD } from "../constants/eml-download.constants";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import { GMAIL_WRITE_ACTION } from "../constants/google-oauth-scopes";
 import { HTTP_HEADERS } from "../constants/http-headers";
 import { INJECT_TOKENS } from "../constants/inject-tokens";
 import { JOB_NAMES } from "../constants/job-names";
@@ -64,7 +66,9 @@ import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
+  parseOptionalFloatParam,
   resolveInboxBatchLimit,
+  splitCsvParam,
 } from "./email-controller.helpers";
 import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
@@ -131,20 +135,10 @@ export class EmailsController {
       offset: offsetParam,
       assigneeId,
     } = query;
-    const accountIds = accounts
-      ? accounts.split(",").filter(Boolean)
-      : undefined;
-    const categoryIdList = categoryIds
-      ? categoryIds.split(",").filter(Boolean)
-      : undefined;
-    const minPriorityValue =
-      minPriority !== undefined && minPriority !== ""
-        ? parseFloat(minPriority)
-        : undefined;
-    const maxPriorityValue =
-      maxPriority !== undefined && maxPriority !== ""
-        ? parseFloat(maxPriority)
-        : undefined;
+    const accountIds = splitCsvParam(accounts);
+    const categoryIdList = splitCsvParam(categoryIds);
+    const minPriorityValue = parseOptionalFloatParam(minPriority);
+    const maxPriorityValue = parseOptionalFloatParam(maxPriority);
 
     const pageSize = limitParam
       ? Math.max(1, parseInt(limitParam, 10))
@@ -882,6 +876,7 @@ export class EmailsController {
   }
 
   @Post("bulk/archive")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async bulkArchive(@Request() req, @Body() body: { emailIds: string[] }) {
     this.logger.log(
       `[Archive] Bulk archive request received for ${body.emailIds.length} emails, userId: ${req.user.userId}`,
@@ -905,6 +900,7 @@ export class EmailsController {
   }
 
   @Put(":id/archive")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.ARCHIVE)
   async archiveEmail(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     this.logger.log(
@@ -926,6 +922,7 @@ export class EmailsController {
   }
 
   @Delete(":id")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.DELETE)
   async deleteEmail(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     await this.emailsService.deleteEmail(req.user.userId, id);
@@ -933,12 +930,14 @@ export class EmailsController {
   }
 
   @Put(":id/star")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async toggleStar(@Request() req, @Param("id") id: string) {
     assertEmailId(id);
     return this.emailsService.toggleStar(req.user.userId, id);
   }
 
   @Put(":id/star-count")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.STAR)
   async setStarCount(
     @Request() req,
     @Param("id") id: string,
@@ -950,6 +949,7 @@ export class EmailsController {
   }
 
   @Post(":id/block-sender")
+  @RequireGmailManagePermission(GMAIL_WRITE_ACTION.BLOCK_SENDER)
   async blockSender(
     @Request() req,
     @Param("id") id: string,

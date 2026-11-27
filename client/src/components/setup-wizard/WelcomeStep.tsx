@@ -39,10 +39,20 @@ function pickIconColor(variant: PropVariant): string {
   return TOK.sunDark;
 }
 
+function pickConnectedBodyKey(isAppleMail: boolean, isGmailReadOnly: boolean): string {
+  if (isAppleMail) {
+    return 'setupWizard.welcome.prop1BodyAppleMail';
+  }
+  if (isGmailReadOnly) {
+    return 'setupWizard.welcome.prop1BodyGmailReadOnly';
+  }
+  return 'setupWizard.welcome.prop1Body';
+}
+
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUser }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { gmailProblem } = resolveGooglePermissions(user);
+  const { gmailProblem, isGmailReadOnly } = resolveGooglePermissions(user);
   const mailbox = useMailboxConnection();
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +110,7 @@ export const WelcomeStep: React.FC<WelcomeStepProps> = ({ onComplete, refreshUse
           gmailProblem={gmailProblem}
           mailboxStatus={mailbox.status}
           isAppleMail={isAppleMail}
+          isGmailReadOnly={isGmailReadOnly}
           onConnected={mailbox.recheck}
         />
         <PropCard
@@ -148,11 +159,18 @@ interface MailboxCardProps {
   gmailProblem: GmailPermissionProblem | null;
   mailboxStatus: MailboxStatus;
   isAppleMail: boolean;
+  isGmailReadOnly: boolean;
   onConnected: () => void;
 }
 
 /** First card: only says "connected" once a mailbox is actually there (#442). */
-const MailboxCard: React.FC<MailboxCardProps> = ({ gmailProblem, mailboxStatus, isAppleMail, onConnected }) => {
+const MailboxCard: React.FC<MailboxCardProps> = ({
+  gmailProblem,
+  mailboxStatus,
+  isAppleMail,
+  isGmailReadOnly,
+  onConnected,
+}) => {
   const { t } = useTranslation();
   if (gmailProblem) {
     return <GmailPermissionWarning problem={gmailProblem} />;
@@ -169,7 +187,7 @@ const MailboxCard: React.FC<MailboxCardProps> = ({ gmailProblem, mailboxStatus, 
       variant={VARIANT_DONE}
       icon={<CheckIconLarge />}
       title={t('setupWizard.welcome.prop1Title')}
-      body={t(isAppleMail ? 'setupWizard.welcome.prop1BodyAppleMail' : 'setupWizard.welcome.prop1Body')}
+      body={t(pickConnectedBodyKey(isAppleMail, isGmailReadOnly))}
       doneLabel={t('setupWizard.welcome.doneTag')}
     />
   );

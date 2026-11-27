@@ -7,6 +7,11 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 
+import { GooglePermissionRequiredException } from "../auth/exceptions/google-permission-required.exception";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { AllExceptionsFilter } from "./http-exception.filter";
 
 function respond(exception: unknown) {
@@ -57,6 +62,21 @@ describe("AllExceptionsFilter", () => {
         }),
       ).body,
     ).toMatchObject({ failure: { protocol: "imap", code: "auth_failed" } });
+  });
+
+  it("keeps what the client needs to open the Google permission prompt", () => {
+    const { status, body } = respond(
+      new GooglePermissionRequiredException(
+        GOOGLE_PERMISSION_GROUP.GMAIL_MANAGE,
+        GMAIL_WRITE_ACTION.ARCHIVE,
+      ),
+    );
+    expect(status).toBe(HttpStatus.FORBIDDEN);
+    expect(body).toMatchObject({
+      code: "GOOGLE_PERMISSION_REQUIRED",
+      permission: "gmail_manage",
+      action: "archive",
+    });
   });
 
   it("does not let an exception body overwrite the envelope", () => {

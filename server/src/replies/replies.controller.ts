@@ -18,8 +18,13 @@ import {
 } from "@nestjs/common";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 
+import { RequireGooglePermission } from "../auth/google-permission.guard";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ERROR_MESSAGES } from "../constants/error-messages";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import {
   encodeAttachments,
@@ -113,6 +118,10 @@ export class RepliesController {
    * `email-send-failed` Pusher event carrying the returned `sendId`.
    */
   @Post("send/:id")
+  @RequireGooglePermission(
+    GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+    GMAIL_WRITE_ACTION.SEND,
+  )
   @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(AnyFilesInterceptor())
   async sendReply(

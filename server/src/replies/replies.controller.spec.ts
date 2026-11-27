@@ -1,6 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 
+import { GooglePermissionGuard } from "../auth/google-permission.guard";
 import { EMAIL_SEND_STATUS } from "../constants/email-send.constants";
 import { EmailSendQueueService } from "../email-send-queue/email-send-queue.service";
 import { EmailsService } from "../emails/emails.service";
@@ -61,6 +62,8 @@ describe("RepliesController", () => {
       ],
     })
       .overrideGuard(AiCapacityGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(GooglePermissionGuard)
       .useValue({ canActivate: jest.fn(() => true) })
       .compile();
 

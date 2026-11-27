@@ -3,6 +3,12 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { isUUID } from "class-validator";
 import { In, MoreThan, Repository } from "typeorm";
 
+import { GooglePermissionRequiredException } from "../auth/exceptions/google-permission-required.exception";
+import { assertGooglePermission } from "../auth/google-permission.guard";
+import {
+  GMAIL_WRITE_ACTION,
+  GOOGLE_PERMISSION_GROUP,
+} from "../constants/google-oauth-scopes";
 import { MCP_SERVER } from "../constants/mcp-server.constants";
 import { HOURS_PER_DAY } from "../constants/time-constants";
 import { AuditLog } from "../database/entities/audit-log.entity";
@@ -10,6 +16,7 @@ import { EmailSendQueueService } from "../email-send-queue/email-send-queue.serv
 import { EmailProviderManager } from "../emails/email-provider-manager.service";
 import { EmailsService } from "../emails/emails.service";
 import { toSendableHtmlBody } from "./mcp-send-body.helpers";
+import { UsersService } from "../users/users.service";
 import { McpCallContext } from "./mcp-server.types";
 import {
   McpToolInputError,
@@ -22,6 +29,8 @@ import {
 
 const UUID_MAX_LENGTH = 36;
 const MCP_SEND_AUDIT_ACTIONS = Object.values(MCP_SERVER.AUDIT_ACTIONS);
+const GMAIL_SEND_PERMISSION_MISSING =
+  "BearlyMail doesn't have permission to send from this Gmail account yet. Ask the user to send one email from BearlyMail and allow sending when Google asks, then try again.";
 
 interface QueuedSend {
   sendId: string;
@@ -97,6 +106,7 @@ export class McpSendToolsService {
     private readonly emailSendQueueService: EmailSendQueueService,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
+    private readonly usersService: UsersService,
   ) {}
 
   async sendReply(context: McpCallContext, args: ToolArgs) {
@@ -118,6 +128,7 @@ export class McpSendToolsService {
     if (!email) {
       throw new McpToolInputError(`No email found with id ${emailId}`);
     }
+    await this.assertCanSendFromGmail(userId);
 
     const queued = await this.sendWithinLimit(
       context,
@@ -167,6 +178,7 @@ export class McpSendToolsService {
         "The user has no email account connected to BearlyMail",
       );
     }
+    await this.assertCanSendFromGmail(userId);
 
     const toRecipients = (addresses: string[] | undefined) =>
       addresses?.map((email) => ({ email }));
@@ -186,6 +198,27 @@ export class McpSendToolsService {
         }),
     );
     return queuedResult(queued, options);
+  }
+
+  /**
+   * A read-only Gmail grant can't send. The web app asks Google for the
+   * permission before queueing; over MCP there's no browser to ask, so refuse
+   * up front rather than report "Queued" for a send the queue will reject.
+   */
+  private async assertCanSendFromGmail(userId: string): Promise<void> {
+    try {
+      await assertGooglePermission(
+        this.usersService,
+        userId,
+        GOOGLE_PERMISSION_GROUP.GMAIL_SEND,
+        GMAIL_WRITE_ACTION.SEND,
+      );
+    } catch (error: unknown) {
+      if (error instanceof GooglePermissionRequiredException) {
+        throw new McpToolInputError(GMAIL_SEND_PERMISSION_MISSING);
+      }
+      throw error;
+    }
   }
 
   /**

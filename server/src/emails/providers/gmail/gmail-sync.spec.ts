@@ -420,6 +420,26 @@ describe("buildStoredGmailEmailUpdates", () => {
     ).toEqual({ isRead: false });
   });
 
+  it("keeps an email read in BearlyMail when a read-only grant left it unread in Gmail", () => {
+    expect(
+      buildStoredGmailEmailUpdates(
+        storedEmail({ isRead: true }),
+        { isRead: false, labelIds: ["INBOX", "UNREAD"] },
+        { canWriteToGmail: false },
+      ),
+    ).toEqual({});
+  });
+
+  it("still marks an email read when it was read in Gmail on a read-only grant", () => {
+    expect(
+      buildStoredGmailEmailUpdates(
+        storedEmail({ isRead: false }),
+        { isRead: true, labelIds: ["INBOX"] },
+        { canWriteToGmail: false },
+      ),
+    ).toEqual({ isRead: true });
+  });
+
   it("backfills attachments missing from an older sync", () => {
     const attachments = [
       { attachmentId: "a1", filename: "f.pdf", mimeType: "x", size: 1 },

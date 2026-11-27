@@ -25,6 +25,14 @@ export interface StoredGmailEmailUpdates {
   labels?: string[];
 }
 
+export interface StoredGmailEmailUpdateOptions {
+  canWriteToGmail: boolean;
+}
+
+const WRITABLE_GMAIL_GRANT: StoredGmailEmailUpdateOptions = {
+  canWriteToGmail: true,
+};
+
 /**
  * Fields of an already-stored email that a re-sync of the same Gmail message
  * should refresh: read state, attachments missing from older syncs, and the
@@ -34,10 +42,15 @@ export interface StoredGmailEmailUpdates {
 export function buildStoredGmailEmailUpdates(
   existing: Pick<Email, "isRead" | "attachments" | "labels">,
   rawEmail: Pick<RawEmailMessage, "isRead" | "attachments" | "labelIds">,
+  options: StoredGmailEmailUpdateOptions = WRITABLE_GMAIL_GRANT,
 ): StoredGmailEmailUpdates {
   const updates: StoredGmailEmailUpdates = {};
   const isReadInGmail = Boolean(rawEmail.isRead);
-  if (existing.isRead !== isReadInGmail) {
+  // A read-only grant can't mark the email read in Gmail, so Gmail's UNREAD
+  // says nothing about what the user has already read in BearlyMail.
+  const keepReadInBearlyMail =
+    !options.canWriteToGmail && existing.isRead && !isReadInGmail;
+  if (existing.isRead !== isReadInGmail && !keepReadInBearlyMail) {
     updates.isRead = isReadInGmail;
   }
   const hasStoredAttachments =

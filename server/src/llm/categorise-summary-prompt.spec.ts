@@ -9,6 +9,8 @@ import { getPrompt, renderPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 const GITHUB_FACTS =
   "Item: issue #812 Focus-Bear/Mac-App · state: open · project status: QA passed (Mac App roadmap)";
 
+const GITHUB_RULES_HEADING = "**GitHub-specific rules:**";
+
 const BASE_VARS = {
   subject: "Re: [Focus-Bear/Mac-App] Timer drifts after sleep (Issue #812)",
   senderName: "qa-tester",
@@ -53,5 +55,13 @@ describe("categorise_summary prompt", () => {
     for (const githubFacts of [GITHUB_FACTS, ""]) {
       expect(render({ ...BASE_VARS, githubFacts })).not.toMatch(/\{\{|\{%/);
     }
+  });
+
+  it("includes the GitHub ruleset only when showGithubRules is set", () => {
+    expect(render(BASE_VARS)).toContain(GITHUB_RULES_HEADING);
+
+    const nonGithub = render({ ...BASE_VARS, showGithubRules: false });
+    expect(nonGithub).not.toContain(GITHUB_RULES_HEADING);
+    expect(nonGithub).not.toMatch(/\{\{|\{%/);
   });
 });

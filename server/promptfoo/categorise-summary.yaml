@@ -12,6 +12,8 @@ defaultTest:
   vars:
     categorySelectionRules: file://prompts/_shared/category-selection-rules.md
     categoryGithubRules: file://prompts/_shared/category-github-rules.md
+    # Production sends the GitHub ruleset only for GitHub mail (GitHub sender
+    # or GitHub facts), so non-GitHub tests override this with false.
     showGithubRules: true
 
 tests:
@@ -175,6 +177,7 @@ tests:
   # Test 6: Spanish email with "datos" → NOT "Build/deployment errors" (#1287)
   - description: "Spanish email with 'datos' — must NOT be miscategorised as Build/deployment errors"
     vars:
+      showGithubRules: false
       senderName: "Andrea López"
       subject: "Pregunta sobre exportación de datos"
       summary: "Hola equipo, tengo una pregunta sobre la exportación de datos de usuario. ¿Es posible descargar los datos en formato CSV? Necesito los datos de actividad de los últimos 3 meses para un informe. También quiero saber si la conexión con la API permite extraer datos automáticamente. Gracias."
@@ -207,6 +210,7 @@ tests:
   # Test 7: Email with GDPR footer → NOT "Security & Compliance" (#1288)
   - description: "Product question with GDPR footer — must NOT be miscategorised as Security & Compliance"
     vars:
+      showGithubRules: false
       senderName: "Andrea López"
       subject: "Question about Focus Bear pricing plans"
       summary: |
@@ -243,6 +247,7 @@ tests:
   # Test 8: Actual security email with footer → SHOULD be "Security & Compliance" (regression guard)
   - description: "Genuine security email with GDPR footer — must still be categorised as Security & Compliance"
     vars:
+      showGithubRules: false
       senderName: "Security Team"
       subject: "URGENT: Potential data breach detected in production"
       summary: |
@@ -279,6 +284,7 @@ tests:
   # Test 9: Jira notification about a bug → Jira category, NOT "Customer feedback" (cross-platform signal-extraction)
   - description: "Jira bug notification — platform identity (Jira) takes priority over content topic (bug)"
     vars:
+      showGithubRules: false
       senderName: "Jira"
       subject: "[BEAR-123] Login button does not work on iOS 17"
       summary: "A new issue was created in Jira by a customer: 'Login button does not work on iOS 17'. Severity: High. Reporter: user@example.com. View on Jira: https://focusbear.atlassian.net/browse/BEAR-123"
@@ -314,6 +320,7 @@ tests:
   # Test 10: Slack digest notification → Slack category, NOT "HR Admin" (cross-platform: Slack)
   - description: "Slack digest — platform identity (Slack) takes priority over content topic (team/HR-adjacent)"
     vars:
+      showGithubRules: false
       senderName: "Slack"
       subject: "Your Slack digest: 3 unread messages in #team-general"
       summary: "You have 3 unread messages in #team-general on the Focus Bear Slack workspace. Topics include upcoming team offsite planning, public holiday policy reminder, and a new hire announcement. View in Slack: https://focusbear.slack.com"
@@ -417,6 +424,7 @@ tests:
   # category, NOT invent a new proto (the real "Cold Sales Outreach" prod bug).
   - description: "Cold outreach from stranger — reuse existing cold-outreach category, do NOT invent a new proto"
     vars:
+      showGithubRules: false
       senderName: "Marcus Webb"
       subject: "Quick question about growing your user base"
       summary: "Hi, I run an agency that helps SaaS companies grow. Not a customer — reaching out cold to explore whether we could help. Would love 15 minutes."
@@ -447,6 +455,7 @@ tests:
   # Test 14: Newsletter → newsletter category
   - description: "Newsletter/digest — routes to the Newsletters category"
     vars:
+      showGithubRules: false
       senderName: "TechCrunch Daily"
       subject: "Your Tuesday briefing: this week in AI funding"
       summary: "Here are today's top stories in tech: funding rounds, product launches, and more. Unsubscribe any time."
@@ -473,6 +482,7 @@ tests:
   # Test 15: Calendar invite WITH a dedicated calendar category → use it (sanity-check EXCEPTION)
   - description: "Calendar invite with dedicated Calendar category present — use it, not Other"
     vars:
+      showGithubRules: false
       senderName: "Google Calendar"
       subject: "Invitation: Design sync @ Thu Mar 19, 2pm"
       summary: "You have been invited to the event 'Design sync'. Thursday 2:00pm. RSVP: yes / no / maybe."
@@ -499,6 +509,7 @@ tests:
   # Test 16: Automated system alert with NO fitting category → Other, NOT a people category
   - description: "Automated monitoring alert — must be Other, never a people category (sanity check)"
     vars:
+      showGithubRules: false
       senderName: "Datadog Alerts"
       subject: "[ALERT] High error rate on api-prod"
       summary: "Automated monitoring alert: HTTP 5xx error rate exceeded the threshold on service api-prod for the last 5 minutes."
@@ -528,6 +539,7 @@ tests:
   # Test 17: A broad existing category fits → pick it, don't invent a narrower one
   - description: "External meetup — pick the broad existing events category, do not invent a narrower proto"
     vars:
+      showGithubRules: false
       senderName: "React Sydney"
       subject: "You're invited: React Sydney August meetup"
       summary: "Join us for an evening of talks and networking with the Sydney React community. Free entry, external event."
@@ -557,6 +569,7 @@ tests:
   # Test 18: Genuinely novel type with no fit → Other
   - description: "Personal rent-increase notice — genuine Other when no existing category fits"
     vars:
+      showGithubRules: false
       senderName: "Sarah (property manager)"
       subject: "Notice: rent increase for your apartment"
       summary: "This is formal notice that your monthly rent will increase by 4% effective next quarter. Please sign the attached acknowledgement."
@@ -584,6 +597,7 @@ tests:
   # A missing newsletter category must produce Other.
   - description: "Newsletter with no newsletter category → Other when no newsletter category exists"
     vars:
+      showGithubRules: false
       senderName: "TechCrunch"
       subject: "TechCrunch Daily: the week's biggest startup stories"
       summary: "Weekly TechCrunch newsletter digest of startup and venture news with links to the top stories; automated mass mailing."
@@ -649,6 +663,7 @@ tests:
 
   - description: "Returns 0 (Other) when no listed category fits"
     vars:
+      showGithubRules: false
       subject: "Weekly team lunch on Friday"
       summary: "Reminder that the weekly team lunch is on Friday at noon; please RSVP."
       categories: |
@@ -678,6 +693,7 @@ tests:
   # ---------------------------------------------------------------------------
   - description: "MANY-CAT[real85] (a) iTunes Store \"New Invoice Available\" receipt → Payments & Financials, never Follow-up & Chasing Replies (prod regression)"
     vars:
+      showGithubRules: false
       subject: "New Invoice Available"
       senderName: "iTunes Store"
       summary: "Automated iTunes Store notification that a new invoice is available: the monthly Focus Bear Pro subscription (A$14.99) was charged to the card on file. Informational receipt, no reply needed."
@@ -778,6 +794,7 @@ tests:
 
   - description: "MANY-CAT[real85] (b) Genuine human chasing email → Follow-up & Chasing Replies"
     vars:
+      showGithubRules: false
       subject: "Re: Quick question — following up"
       senderName: "Priya Raman"
       summary: "Priya is chasing a reply to an email she sent last week, asking whether there is any update and offering a quick call; she wants a response either way so she can plan her next step."
@@ -816,6 +833,7 @@ tests:
 
   - description: "MANY-CAT[real85] (e) Stripe \"statement is ready\" → one of the two finance categories, never Follow-up"
     vars:
+      showGithubRules: false
       subject: "Your August 2026 statement is ready"
       senderName: "Stripe"
       summary: "Automated Stripe notice that the August 2026 monthly statement for Focus Bear Pty Ltd is ready to download, summarising 14 payouts totalling A$3,412.50, A$98.20 in fees and no disputes."
@@ -833,6 +851,7 @@ tests:
 
   - description: "MANY-CAT[real85] (f) Google \"new sign-in\" security alert → Security & Compliance, not Login/2FA codes or social notifications"
     vars:
+      showGithubRules: false
       subject: "Security alert: new sign-in on Windows"
       senderName: "Google"
       summary: "Google security alert that a new sign-in to the account was detected from a Windows device in Sydney; asks the user to secure the account if they do not recognise the activity."
@@ -850,6 +869,7 @@ tests:
 
   - description: "MANY-CAT[real85] (g) Meetup weekly digest → Newsletters (or the Meetup category), never a meetings/scheduling category"
     vars:
+      showGithubRules: false
       subject: "This week: 12 new events near Melbourne"
       senderName: "Meetup"
       summary: "Weekly Meetup digest email listing 12 upcoming events near Melbourne from groups the user follows (ADHD social, Product Tank, founders, React); mass mailing with unsubscribe link, no action requested."
@@ -887,6 +907,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (a) iTunes Store \"New Invoice Available\" receipt → Receipts, Invoices & Payments, never Follow-up & Chasing Replies"
     vars:
+      showGithubRules: false
       subject: "New Invoice Available"
       senderName: "iTunes Store"
       summary: "Automated iTunes Store notification that a new invoice is available: the monthly Focus Bear Pro subscription (A$14.99) was charged to the card on file. Informational receipt, no reply needed."
@@ -923,6 +944,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (b) Genuine human chasing email → Follow-up & Chasing Replies"
     vars:
+      showGithubRules: false
       subject: "Re: Quick question — following up"
       senderName: "Priya Raman"
       summary: "Priya is chasing a reply to an email she sent last week, asking whether there is any update and offering a quick call; she wants a response either way so she can plan her next step."
@@ -953,6 +975,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (d) SEEK job alert → Job Alerts, not Hiring & Recruiting"
     vars:
+      showGithubRules: false
       subject: "12 new jobs: Product Manager in Melbourne VIC"
       senderName: "SEEK"
       summary: "Automated SEEK job-alert digest listing 12 new Product Manager roles in Melbourne that match a saved search; includes links to view all jobs and manage or unsubscribe from alerts."
@@ -968,6 +991,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (e) Stripe \"statement is ready\" → Banking & Finance or Receipts, never Follow-up"
     vars:
+      showGithubRules: false
       subject: "Your August 2026 statement is ready"
       senderName: "Stripe"
       summary: "Automated Stripe notice that the August 2026 monthly statement for Focus Bear Pty Ltd is ready to download, summarising 14 payouts totalling A$3,412.50, A$98.20 in fees and no disputes."
@@ -984,6 +1008,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (f) Google \"new sign-in\" security alert → Security & Compliance, not App Notifications"
     vars:
+      showGithubRules: false
       subject: "Security alert: new sign-in on Windows"
       senderName: "Google"
       summary: "Google security alert that a new sign-in to the account was detected from a Windows device in Sydney; asks the user to secure the account if they do not recognise the activity."
@@ -999,6 +1024,7 @@ tests:
 
   - description: "MANY-CAT[synthetic21] (g) Meetup weekly digest → Newsletters, not Meetings & Scheduling"
     vars:
+      showGithubRules: false
       subject: "This week: 12 new events near Melbourne"
       senderName: "Meetup"
       summary: "Weekly Meetup digest email listing 12 upcoming events near Melbourne from groups the user follows (ADHD social, Product Tank, founders, React); mass mailing with unsubscribe link, no action requested."

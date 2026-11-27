@@ -112,6 +112,50 @@ describe("categoriseFromSummary", () => {
     });
   });
 
+  describe("GitHub ruleset gating", () => {
+    const VALID_RESPONSE = JSON.stringify({
+      result: { categoryNumber: 1, categoryConfidence: "HIGH" },
+    });
+
+    async function renderedSystemPrompt(
+      overrides: Partial<Parameters<typeof categoriseFromSummary>[2]>,
+    ): Promise<string> {
+      jest.mocked(getPrompt).mockReturnValueOnce({
+        prompt: "PROMPT",
+        systemPrompt: "GITHUB_RULES={{showGithubRules}}",
+      } as ReturnType<typeof getPrompt>);
+      generateText.mockResolvedValue(VALID_RESPONSE);
+      await categoriseFromSummary(generateText, logger, {
+        subject: "Subject",
+        summary: "A summary",
+        categories,
+        ...overrides,
+      });
+      return generateText.mock.calls[0][0].systemPrompt;
+    }
+
+    it("sends the GitHub rules for a GitHub sender", async () => {
+      expect(
+        await renderedSystemPrompt({ senderEmail: "notifications@github.com" }),
+      ).toBe("GITHUB_RULES=true");
+    });
+
+    it("sends the GitHub rules when GitHub facts are attached", async () => {
+      expect(
+        await renderedSystemPrompt({
+          senderEmail: "someone@example.com",
+          githubFacts: "Item: issue #1 · state: open",
+        }),
+      ).toBe("GITHUB_RULES=true");
+    });
+
+    it("omits the GitHub rules for non-GitHub mail", async () => {
+      expect(
+        await renderedSystemPrompt({ senderEmail: "billing@xero.com" }),
+      ).toBe("GITHUB_RULES=false");
+    });
+  });
+
   it("handles markdown codeblock wrapping in LLM response", async () => {
     generateText.mockResolvedValue(
       `\`\`\`json\n${JSON.stringify({

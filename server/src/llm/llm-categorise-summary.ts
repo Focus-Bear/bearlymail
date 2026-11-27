@@ -4,6 +4,7 @@ import {
 } from "../constants/ai-decision-provider.constants";
 import { JEV } from "../constants/jev.constants";
 import { RATIOS } from "../constants/percentages";
+import { isGithubSenderEmail } from "../constants/platform-pinning.constants";
 import { QUERY_LIMITS } from "../constants/query-limits";
 import { assignFamily } from "../context/category-family.taxonomy";
 import type { LoggerPort } from "../shared/email-intelligence/ports";
@@ -78,6 +79,14 @@ function normaliseConfidence(raw: unknown): "HIGH" | "MEDIUM" | "LOW" {
   return value === "HIGH" || value === "LOW" ? value : "MEDIUM";
 }
 
+/** A thread from a GitHub sender, or one we hold GitHub API facts for. */
+function isGithubThread(params: CategoriseFromSummaryParams): boolean {
+  return (
+    isGithubSenderEmail(params.senderEmail ?? undefined) ||
+    Boolean(params.githubFacts?.trim())
+  );
+}
+
 /**
  * Lightweight, category-ONLY re-categorisation of a thread from its updated
  * summary — used by the incremental analysis path after a new email is
@@ -127,12 +136,11 @@ export async function categoriseFromSummary(
     summary,
     categories: numberedCategories,
     githubFacts: params.githubFacts || "",
-    // Category-only classification always wants the GitHub ruleset (QA
-    // pass/fail, bot-vs-human etc.); unlike the priority prompt it does not
-    // gate it on sender, so the shared {% if showGithubRules %} always resolves
-    // true here. The systemPrompt (which carries the injected shared rules) is
-    // rendered too so that conditional is evaluated rather than sent literally.
-    showGithubRules: true,
+    // The GitHub ruleset (QA pass/fail, bot-vs-human, AI-authored PRs) is ~1.3K
+    // tokens of every call, so it is sent only for GitHub mail. The
+    // systemPrompt (which carries the injected shared rules) is rendered too so
+    // that {% if showGithubRules %} is evaluated rather than sent literally.
+    showGithubRules: isGithubThread(params),
   };
   const prompt = renderPrompt(promptConfig.prompt || "", renderVars);
   const systemPrompt = renderPrompt(

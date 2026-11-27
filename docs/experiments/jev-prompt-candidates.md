@@ -185,3 +185,20 @@ Caveats: these are small regression sets, partly tuned during development, not h
 ## Migration checks
 
 For each subsequent adapter, reuse production request/output code in promptfoo. Measure raw Jev and the actual Gemini fallback path independently; record fallback frequency, combined latency, token usage and API errors. Add malformed-response, timeout, threshold-boundary and missing-key tests. Do not treat concentrated probabilities as proof of correctness or permission to perform actions. Category fixtures are regressions used during tuning, not a held-out accuracy estimate.
+
+## Two-stage categorisation (2026-11-28, behind `JEV_TWO_STAGE_CATEGORISATION`)
+
+Production logs from the week to 2026-11-27 showed single-stage Jev accepting 32% of `categorise_summary` calls (302 of 940). 97% of those calls came from one account with 102 categories, where Jev's probability spreads across near-duplicate siblings. Two-stage asks for the taxonomy family first (`categorise-summary-jev-family.md`), then for the category inside it.
+
+- Stage-1 options are the families, plus each category the taxonomy leaves unfamilied as its own option, plus Other.
+- On the 85-category fixture taxonomy (`MANY-CAT[real85]`), that is 23 options instead of 86, and the largest family has 13 categories.
+- Stage 2 declining hands Gemini only that family's categories. Stage 1 declining uses the unchanged Gemini path.
+
+Replay with `node promptfoo/replay-jev-two-stage.cjs --fixtures`, or pass an export of production cases. On the 18 labelled `categorise-summary.yaml` fixtures, both paths were 100% correct on what they accepted:
+
+| Path | Accepted |
+| --- | --- |
+| Single-stage | 13 |
+| Two-stage | 12 |
+
+The fixtures are easy, so they cannot show the gain production needs. The flag stays off until a production replay shows higher acceptance without worse agreement.

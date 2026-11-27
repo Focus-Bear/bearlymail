@@ -886,6 +886,7 @@ All email endpoints require `JwtAuthGuard` + `GmailRequiredGuard`.
 | `OPENAI_API_KEY`, `OPENAI_MODEL`                              | No       | OpenAI config                             |
 | `TYPESAFE_AI_API_KEY`, `TYPESAFE_AI_MODEL`                    | No       | Jev (TypeSafe) typed-decision model       |
 | `JEV_CATEGORISATION_ENABLED`, `JEV_DECISIONS_ENABLED`         | No       | Set `false` to bypass Jev for categorisation / other decisions |
+| `JEV_TWO_STAGE_CATEGORISATION`                                | No       | `true` makes Jev categorise in two calls: category family, then the category within it (off by default; see `docs/experiments/jev-prompt-candidates.md`) |
 | `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`            | No       | GitHub integration                        |
 | `TERMS_VERSION`, `PRIVACY_VERSION`                            | No       | Override consent versions (defaults in `server/src/constants/legal-versions.ts`; bump the default when policy wording changes so users re-accept) |
 | `REVENUECAT_API_KEY`                                          | No       | Subscription management                   |

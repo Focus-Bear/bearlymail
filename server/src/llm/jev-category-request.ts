@@ -1,5 +1,5 @@
 import { JEV } from "../constants/jev.constants";
-import { requestJev } from "./jev-system-one";
+import { type JevRequest, requestJev } from "./jev-system-one";
 import type { CategoriseFromSummaryParams } from "./llm-categorise-summary";
 import { getPrompt, UTILITY_PROMPT_IDS } from "./prompts";
 
@@ -58,7 +58,7 @@ export function buildJevCategoryRequest(
 }
 
 export async function requestJevCategory(
-  request: ReturnType<typeof buildJevCategoryRequest>,
+  request: JevRequest,
   apiKey: string,
 ): Promise<JevCategoryResponse> {
   return (await requestJev(request, apiKey)) as JevCategoryResponse;

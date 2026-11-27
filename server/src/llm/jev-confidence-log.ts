@@ -16,6 +16,14 @@ export const JEV_OUTCOMES = {
 
 export type JevOutcome = (typeof JEV_OUTCOMES)[keyof typeof JEV_OUTCOMES];
 
+/** Which question of two-stage categorisation an answer was for. */
+export const JEV_STAGES = {
+  FAMILY: "family",
+  CATEGORY: "category",
+} as const;
+
+export type JevStage = (typeof JEV_STAGES)[keyof typeof JEV_STAGES];
+
 export interface JevConfidenceRecord {
   /** Operation (categorisation) or decision kind the answer was for. */
   decision: string;
@@ -31,6 +39,8 @@ export interface JevConfidenceRecord {
   runnerUpMargin?: number;
   /** Summed probability of the most probable category family (categorisation only). */
   familyConfidence?: number;
+  /** Two-stage categorisation only: which stage answered. */
+  stage?: JevStage;
 }
 
 const DECIMAL_PLACES = 2;
@@ -55,6 +65,7 @@ export function formatJevConfidenceRecord(record: JevConfidenceRecord): string {
     fields.push(`margin=${formatNumber(record.runnerUpMargin)}`);
   if (record.familyConfidence !== undefined)
     fields.push(`family_confidence=${formatNumber(record.familyConfidence)}`);
+  if (record.stage !== undefined) fields.push(`stage=${record.stage}`);
   return `${JEV_CONFIDENCE_LOG_TAG} ${fields.join(" ")}`;
 }
 
@@ -80,8 +91,11 @@ export interface JevShadowRecord {
   decision: string;
   /** Jev's confidence in the answer it was not trusted with. */
   confidence: number;
-  /** True when the LLM fallback reached the same answer as Jev. */
-  agreed: boolean;
+  /**
+   * True when the LLM fallback reached the same answer as Jev; null when Jev
+   * declined before naming one (two-stage: only a family was chosen).
+   */
+  agreed: boolean | null;
   /** Categorisation only: how Jev's most probable family compared with the fallback's pick. */
   family?: FamilyShadowRecord;
 }
@@ -95,7 +109,7 @@ export interface FamilyShadowRecord {
 }
 
 export function formatJevShadowRecord(record: JevShadowRecord): string {
-  const base = `${JEV_SHADOW_LOG_TAG} decision=${record.decision} confidence=${formatNumber(record.confidence)} agreed=${record.agreed}`;
+  const base = `${JEV_SHADOW_LOG_TAG} decision=${record.decision} confidence=${formatNumber(record.confidence)} agreed=${record.agreed ?? "none"}`;
   if (!record.family) return base;
   const { family, confidence, agreed } = record.family;
   return `${base} family_agreed=${agreed} family_confidence=${formatNumber(confidence)} family="${family}"`;

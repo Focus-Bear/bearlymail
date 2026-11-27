@@ -234,9 +234,56 @@ export async function categoriseOnlyWithEscalation(
   } catch {
     logger.warn("Jev categorisation failed; falling back to Gemini");
   }
-  const chosen = await categoriseWithGemini(llmCoreService, logger, params);
+  const chosen =
+    (await categoriseWithinJevFamily(
+      llmCoreService,
+      logger,
+      params,
+      declinedPick,
+    )) ?? (await categoriseWithGemini(llmCoreService, logger, params));
   logShadowAgreement(logger, declinedPick, chosen);
   return chosen;
+}
+
+/**
+ * When two-stage Jev was sure of the family but not the category, Gemini
+ * chooses among that family's categories only: a much smaller prompt, and a
+ * miss stays inside the right family. No escalation here; an Other, LOW or
+ * failed verdict returns null so the caller runs the full-list path.
+ */
+async function categoriseWithinJevFamily(
+  llmCoreService: CategoryModelClient,
+  logger: LoggerPort,
+  params: CategoriseFromSummaryParams,
+  declinedPick: JevDeclinedPick | null,
+): Promise<CategoriseFromSummaryResult | null> {
+  const familyNames = new Set(declinedPick?.narrowToCategoryNames ?? []);
+  if (!familyNames.size) return null;
+  const narrowed = await categoriseWithGemini(llmCoreService, logger, {
+    ...params,
+    categories: params.categories.filter((category) =>
+      familyNames.has(category.name),
+    ),
+    escalationModel: undefined,
+  });
+  if (
+    !narrowed ||
+    narrowed.categoryName === OTHER_CATEGORY_NAME ||
+    narrowed.categoryConfidence === "LOW"
+  )
+    return null;
+  return withFullListCategoryNumber(narrowed, params);
+}
+
+/** Re-numbers a verdict made on a sub-list against the caller's full list. */
+function withFullListCategoryNumber(
+  result: CategoriseFromSummaryResult,
+  params: CategoriseFromSummaryParams,
+): CategoriseFromSummaryResult {
+  const index = params.categories.findIndex(
+    (category) => category.name === result.categoryName,
+  );
+  return { ...result, categoryNumber: index === -1 ? null : index + 1 };
 }
 
 /** Content-free record of whether Gemini agreed with the pick Jev was not trusted with. */
@@ -248,9 +295,12 @@ function logShadowAgreement(
   if (!declinedPick || !chosen) return;
   const { family } = declinedPick;
   logJevShadowAgreement(logger, {
-    decision: LLM_OP_CATEGORISE_SUMMARY,
+    decision: declinedPick.decision ?? LLM_OP_CATEGORISE_SUMMARY,
     confidence: declinedPick.confidence,
-    agreed: declinedPick.categoryName === chosen.categoryName,
+    agreed:
+      declinedPick.categoryName === null
+        ? null
+        : declinedPick.categoryName === chosen.categoryName,
     family: family
       ? {
           family: family.family,

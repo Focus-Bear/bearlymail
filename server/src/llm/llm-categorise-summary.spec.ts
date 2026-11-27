@@ -421,6 +421,85 @@ describe("categoriseWithEscalation", () => {
     });
   });
 
+  describe("two-stage Jev: Gemini within Jev's family", () => {
+    const familyParams = {
+      ...params,
+      categories: [
+        { name: "Newsletters", description: "Digests" },
+        ...categories,
+      ],
+    };
+    const declinedInFamily = jest.fn((_params, onDeclined) => {
+      onDeclined?.({
+        categoryName: "QA failed",
+        confidence: 0.6,
+        family: { family: "GitHub / Issues", confidence: 0.95 },
+        decision: "categorise_summary_two_stage",
+        narrowToCategoryNames: ["QA failed", "QA passed"],
+      });
+      return Promise.resolve(null);
+    });
+
+    it("asks Gemini about the family's categories only and numbers the pick against the full list", async () => {
+      const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+      const result = await categoriseWithEscalation(
+        { generateText, categoriseWithJev: declinedInFamily },
+        logger,
+        { ...familyParams, escalationModel },
+      );
+      expect(generateText).toHaveBeenCalledTimes(1);
+      const narrowedPrompt = generateText.mock.calls[0][0].prompt;
+      expect(narrowedPrompt).not.toContain("Newsletters");
+      expect(narrowedPrompt).toContain("QA passed");
+      expect(generateText.mock.calls[0][0].model).toBeUndefined();
+      expect(result).toEqual(
+        expect.objectContaining({
+          categoryName: "QA passed",
+          categoryNumber: 3,
+        }),
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        '[JEV-SHADOW] decision=categorise_summary_two_stage confidence=0.60 agreed=false family_agreed=true family_confidence=0.95 family="GitHub / Issues"',
+      );
+    });
+
+    it("falls back to the full list when Gemini finds no fit inside the family", async () => {
+      const generateText = jest
+        .fn()
+        .mockResolvedValueOnce(response(0, "LOW"))
+        .mockResolvedValueOnce(response(3, "HIGH"));
+      await categoriseWithEscalation(
+        { generateText, categoriseWithJev: declinedInFamily },
+        logger,
+        familyParams,
+      );
+      expect(generateText).toHaveBeenCalledTimes(2);
+      expect(generateText.mock.calls[1][0].prompt).toContain("Newsletters");
+    });
+
+    it("logs agreed=none when Jev declined before naming a category", async () => {
+      const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
+      const familyOnly = jest.fn((_params, onDeclined) => {
+        onDeclined?.({
+          categoryName: null,
+          confidence: 0.7,
+          family: { family: "GitHub / Issues", confidence: 0.7 },
+          decision: "categorise_summary_two_stage",
+        });
+        return Promise.resolve(null);
+      });
+      await categoriseWithEscalation(
+        { generateText, categoriseWithJev: familyOnly },
+        logger,
+        params,
+      );
+      expect(generateText).toHaveBeenCalledTimes(1);
+      expect(logger.log).toHaveBeenCalledWith(
+        '[JEV-SHADOW] decision=categorise_summary_two_stage confidence=0.70 agreed=none family_agreed=true family_confidence=0.70 family="GitHub / Issues"',
+      );
+    });
+  });
+
   it("returns the flash-lite verdict without escalating when it is confident and not Other", async () => {
     const generateText = jest.fn().mockResolvedValue(response(2, "HIGH"));
     const result = await categoriseWithEscalation({ generateText }, logger, {

@@ -1,4 +1,4 @@
-import { JEV } from "../constants/jev.constants";
+import { JEV, JEV_TWO_STAGE } from "../constants/jev.constants";
 import { JevCategoryClient } from "./jev-category-client";
 import { LLM_OP_CATEGORISE_SUMMARY } from "./llm-operations";
 
@@ -176,5 +176,72 @@ describe("JevCategoryClient", () => {
       ),
     ).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe("two-stage (JEV_TWO_STAGE_CATEGORISATION=true)", () => {
+    const FAMILY_PARAMS = {
+      ...PARAMS,
+      categories: [
+        { name: "Github QA failed issues", description: "QA rejected" },
+        { name: "Github QA passed issues", description: "QA verified" },
+        { name: "Newsletters" },
+      ],
+    };
+    const answerTo = (questionId: string, choice: string) => ({
+      model: JEV.DEFAULT_MODEL,
+      answers: {
+        [questionId]: {
+          type: "choice",
+          choice,
+          confidence: 0.95,
+          // Both stages here offer three options: "0" (Other), "1" and "2".
+          probabilities: { "0": 0, "1": 0, "2": 0, [choice]: 0.95 },
+        },
+      },
+      usage: { input_tokens: 50, output_tokens: 5 },
+    });
+    const twoStage = new JevCategoryClient(
+      (key) => (key === JEV_TWO_STAGE.ENABLED_ENV ? "true" : undefined),
+      logger,
+      usage,
+    );
+
+    it("asks for the family, then the category, logging usage for both calls", async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify(answerTo(JEV_TWO_STAGE.FAMILY_QUESTION_ID, "1")),
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify(answerTo(JEV.QUESTION_ID, "2"))),
+        );
+      const result = await twoStage.categorise(FAMILY_PARAMS, CREDENTIALS);
+      expect(result).toEqual(
+        expect.objectContaining({
+          categoryNumber: 2,
+          categoryName: "Github QA passed issues",
+        }),
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(usage.logUsage).toHaveBeenCalledTimes(2);
+    });
+
+    it("stays single-stage when grouping would not shrink the choice", async () => {
+      fetchMock.mockResolvedValue(new Response(JSON.stringify(response())));
+      await twoStage.categorise(PARAMS, CREDENTIALS);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringContaining("decision=categorise_summary outcome="),
+      );
+    });
+
+    it("stays single-stage when the flag is off", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify(answerTo(JEV.QUESTION_ID, "2"))),
+      );
+      await client.categorise(FAMILY_PARAMS, CREDENTIALS);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

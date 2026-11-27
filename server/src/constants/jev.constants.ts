@@ -24,6 +24,20 @@ export const JEV = {
   MIN_ACCEPTED_CONFIDENCE: 0.85,
 } as const;
 
+/**
+ * Two-stage categorisation: Jev picks the category family first (a few options),
+ * then the category within that family. Off unless the env var is "true".
+ */
+export const JEV_TWO_STAGE = {
+  ENABLED_ENV: "JEV_TWO_STAGE_CATEGORISATION",
+  FAMILY_QUESTION_ID: "family",
+  // Same bar as single-stage until production logs calibrate each stage.
+  FAMILY_MIN_ACCEPTED_CONFIDENCE: 0.85,
+  CATEGORY_MIN_ACCEPTED_CONFIDENCE: 0.85,
+  /** Log decision label, so two-stage lines never mix with single-stage calibration data. */
+  DECISION: "categorise_summary_two_stage",
+} as const;
+
 /** Production decisions that try Jev before their existing LLM call. */
 export const JEV_DECISION_KINDS = {
   WORKFLOW_CONDITION: "evaluate-workflow-condition",

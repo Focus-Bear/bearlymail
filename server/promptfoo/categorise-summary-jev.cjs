@@ -11,5 +11,6 @@ module.exports = {
     ...baseline.providers,
     { id: path.join(__dirname, 'providers/jev-categorisation.cjs') },
     { id: path.join(__dirname, 'providers/jev-categorisation-hybrid.cjs'), label: 'jev-hybrid' },
+    { id: path.join(__dirname, 'providers/jev-categorisation-two-stage.cjs'), label: 'jev-two-stage' },
   ],
 };

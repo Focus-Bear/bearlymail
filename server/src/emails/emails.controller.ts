@@ -66,7 +66,9 @@ import { EmailAdminService } from "./email-admin.service";
 import {
   BatchStatusPerformanceTracker,
   EMAIL_CONTROLLER_DEFAULTS,
+  parseOptionalFloatParam,
   resolveInboxBatchLimit,
+  splitCsvParam,
 } from "./email-controller.helpers";
 import { EmailEmlDownloadService } from "./email-eml-download.service";
 import { EmailExportJobService } from "./email-export-job.service";
@@ -133,20 +135,10 @@ export class EmailsController {
       offset: offsetParam,
       assigneeId,
     } = query;
-    const accountIds = accounts
-      ? accounts.split(",").filter(Boolean)
-      : undefined;
-    const categoryIdList = categoryIds
-      ? categoryIds.split(",").filter(Boolean)
-      : undefined;
-    const minPriorityValue =
-      minPriority !== undefined && minPriority !== ""
-        ? parseFloat(minPriority)
-        : undefined;
-    const maxPriorityValue =
-      maxPriority !== undefined && maxPriority !== ""
-        ? parseFloat(maxPriority)
-        : undefined;
+    const accountIds = splitCsvParam(accounts);
+    const categoryIdList = splitCsvParam(categoryIds);
+    const minPriorityValue = parseOptionalFloatParam(minPriority);
+    const maxPriorityValue = parseOptionalFloatParam(maxPriority);
 
     const pageSize = limitParam
       ? Math.max(1, parseInt(limitParam, 10))

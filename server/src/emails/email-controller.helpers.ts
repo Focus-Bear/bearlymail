@@ -18,6 +18,14 @@ export const EMAIL_CONTROLLER_DEFAULTS = {
   DEFAULT_SIGNATURE: "Sent from BearlyMail (anti inbox overwhelm system)",
 } as const;
 
+/** A comma-separated query parameter as a list; undefined when it wasn't sent. */
+export const splitCsvParam = (value?: string): string[] | undefined =>
+  value ? value.split(",").filter(Boolean) : undefined;
+
+/** A numeric query parameter; undefined when it wasn't sent or is empty. */
+export const parseOptionalFloatParam = (value?: string): number | undefined =>
+  value !== undefined && value !== "" ? parseFloat(value) : undefined;
+
 /**
  * Rows per category for /emails/inbox-batch. Defaults to one inbox page and is
  * clamped to INBOX_TOTAL: the client asks for more only when refreshing a
